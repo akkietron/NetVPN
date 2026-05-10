@@ -13,4 +13,5 @@ Hello Everyone!!
 
 ```Shell
 git clone https://github.com/akkietron/NetVPN.git
-bash pivpn/auto_install/install.sh```
+bash pivpn/auto_install/install.sh
+```
