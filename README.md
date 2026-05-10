@@ -12,5 +12,5 @@ Hello Everyone!!
 ## Installation
 
 ```Shell
-curl https://raw.githubusercontent.com/pivpn/pivpn/master/auto_install/install.sh | bash
-```
+git clone https://github.com/akkietron/NetVPN.git
+bash pivpn/auto_install/install.sh```
