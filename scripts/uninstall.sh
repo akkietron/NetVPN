@@ -1,4 +1,4 @@
-#!/bin/bash
+netvpn#!/bin/bash
 # PiVPN: Uninstall Script
 
 ### Constants
@@ -20,8 +20,8 @@ piholeVersions="/etc/pihole/versions"
 dnsmasqConfig="/etc/dnsmasq.d/02-pivpn.conf"
 setupVarsFile="setupVars.conf"
 setupConfigDir="/etc/pivpn"
-pivpnFilesDir="/usr/local/src/pivpn"
-pivpnScriptDir="/opt/pivpn"
+netvpnFilesDir="/usr/local/src/pivpn"
+netvpnScriptDir="/opt/pivpn"
 PLAT="$(grep -sEe '^NAME\=' /etc/os-release \
   | sed -E -e "s/NAME\=[\'\"]?([^ ]*).*/\1/")"
 UPDATE_PKG_CACHE="${PKG_MANAGER} update"
@@ -76,16 +76,16 @@ removeAll() {
   if [[ "${USING_UFW}" -eq 1 ]]; then
     ### Ignoring SC2154, value sourced from setupVars file
     # shellcheck disable=SC2154
-    ufw delete allow "${pivpnPORT}/${pivpnPROTO}" > /dev/null
+    ufw delete allow "${netvpnPORT}/${netvpnPROTO}" > /dev/null
     ### Ignoring SC2154, value sourced from setupVars file
     # shellcheck disable=SC2154
-    ufw route delete allow in on "${pivpnDEV}" \
-      from "${pivpnNET}/${subnetClass}" out on "${IPv4dev}" to any > /dev/null
-    ufw delete allow in on "${pivpnDEV}" to any port 53 \
-      from "${pivpnNET}/${subnetClass}" > /dev/null
+    ufw route delete allow in on "${netvpnDEV}" \
+      from "${netvpnNET}/${subnetClass}" out on "${IPv4dev}" to any > /dev/null
+    ufw delete allow in on "${netvpnDEV}" to any port 53 \
+      from "${netvpnNET}/${subnetClass}" > /dev/null
 
     sed_pattern='/-I POSTROUTING'
-    sed_pattern="${sed_pattern} -s ${pivpnNET}\\/${subnetClass}"
+    sed_pattern="${sed_pattern} -s ${netvpnNET}\\/${subnetClass}"
     sed_pattern="${sed_pattern} -o ${IPv4dev}"
     sed_pattern="${sed_pattern} -j MASQUERADE"
     sed_pattern="${sed_pattern} -m comment"
@@ -96,7 +96,7 @@ removeAll() {
     iptables \
       -t nat \
       -D POSTROUTING \
-      -s "${pivpnNET}/${subnetClass}" \
+      -s "${netvpnNET}/${subnetClass}" \
       -o "${IPv4dev}" \
       -j MASQUERADE \
       -m comment \
@@ -108,8 +108,8 @@ removeAll() {
       iptables \
         -D INPUT \
         -i "${IPv4dev}" \
-        -p "${pivpnPROTO}" \
-        --dport "${pivpnPORT}" \
+        -p "${netvpnPROTO}" \
+        --dport "${netvpnPORT}" \
         -j ACCEPT \
         -m comment \
         --comment "${VPN}-input-rule"
@@ -118,9 +118,9 @@ removeAll() {
     if [[ "${FORWARD_CHAIN_EDITED}" -eq 1 ]]; then
       iptables \
         -D FORWARD \
-        -d "${pivpnNET}/${subnetClass}" \
+        -d "${netvpnNET}/${subnetClass}" \
         -i "${IPv4dev}" \
-        -o "${pivpnDEV}" \
+        -o "${netvpnDEV}" \
         -m conntrack \
         --ctstate RELATED,ESTABLISHED \
         -j ACCEPT \
@@ -129,8 +129,8 @@ removeAll() {
 
       iptables \
         -D FORWARD \
-        -s "${pivpnNET}/${subnetClass}" \
-        -i "${pivpnDEV}" \
+        -s "${netvpnNET}/${subnetClass}" \
+        -i "${netvpnDEV}" \
         -o "${IPv4dev}" \
         -j ACCEPT \
         -m comment \
@@ -140,7 +140,7 @@ removeAll() {
     iptables \
       -t nat \
       -D POSTROUTING \
-      -s "${pivpnNET}/${subnetClass}" \
+      -s "${netvpnNET}/${subnetClass}" \
       -o "${IPv4dev}" \
       -j MASQUERADE \
       -m comment \
@@ -282,15 +282,15 @@ removeAll() {
 
   if [[ "${vpnStillExists}" -eq 0 ]]; then
     echo ":::"
-    echo "::: Removing pivpn system files..."
+    echo "::: Removing netvpn system files..."
 
     rm -rf "${setupConfigDir}"
-    rm -rf "${pivpnFilesDir}"
-    rm -f /var/log/*pivpn*
-    rm -f /etc/bash_completion.d/pivpn
+    rm -rf "${netvpnFilesDir}"
+    rm -f /var/log/*netvpn*
+    rm -f /etc/bash_completion.d/netvpn
 
-    unlink "${pivpnScriptDir}"
-    unlink /usr/local/bin/pivpn
+    unlink "${netvpnScriptDir}"
+    unlink /usr/local/bin/netvpn
   else
     if [[ "${VPN}" == 'wireguard' ]]; then
       othervpn='openvpn'
@@ -303,23 +303,23 @@ removeAll() {
     echo "::: removing pivpn system files"
     rm -f "${setupConfigDir}/${VPN}/${setupVarsFile}"
 
-    # Restore single pivpn script and bash completion for the remaining VPN
-    ${SUDO} unlink /usr/local/bin/pivpn
+    # Restore single netvpn script and bash completion for the remaining VPN
+    ${SUDO} unlink /usr/local/bin/netvpn
 
     ${SUDO} ln \
-      -sT "${pivpnFilesDir}/scripts/${othervpn}/pivpn.sh" \
-      /usr/local/bin/pivpn
+      -sT "${netvpnFilesDir}/scripts/${othervpn}/netvpn.sh" \
+      /usr/local/bin/netvpn
 
     ${SUDO} ln \
-      -sT "${pivpnFilesDir}/scripts/${othervpn}/bash-completion" \
-      /etc/bash_completion.d/pivpn
+      -sT "${netvpnFilesDir}/scripts/${othervpn}/bash-completion" \
+      /etc/bash_completion.d/netvpn
 
     # shellcheck disable=SC1091
-    . /etc/bash_completion.d/pivpn
+    . /etc/bash_completion.d/netvpn
   fi
 
   echo ":::"
-  printf "::: Finished removing PiVPN from your system.\\n"
+  printf "::: Finished removing NetVPN from your system.\\n"
   printf "::: Reinstall by simply running\\n:::\\n:::\\t"
   printf "curl -L https://install.pivpn.io | "
   printf "bash\\n:::\\n::: at any time!\\n:::\\n"
@@ -357,7 +357,7 @@ if [[ -r "${setupConfigDir}/wireguard/${setupVarsFile}" ]] \
     echo "::: Uninstalling VPN: ${VPN}"
   else
     chooseVPNCmd=(whiptail
-      --backtitle "Setup PiVPN"
+      --backtitle "Setup NetVPN"
       --title "Uninstall"
       --separate-output
       --radiolist "Both OpenVPN and WireGuard are installed, \
@@ -400,7 +400,7 @@ echo "removed depending on your operating system."
 echo "::: (SAFE TO REMOVE ALL ON RASPBIAN)"
 
 while true; do
-  echo -n "::: Do you wish to completely remove PiVPN configuration and "
+  echo -n "::: Do you wish to completely remove NetVPN configuration and "
   echo -n "installed packages from your system? "
   echo -n "(You will be prompted for each package) [y/n]: "
   read -r yn

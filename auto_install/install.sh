@@ -1,28 +1,28 @@
 #!/usr/bin/env bash
-# PiVPN: Trivial OpenVPN or WireGuard setup and configuration
+# NetVPN: Trivial OpenVPN or WireGuard setup and configuration
 # Easiest setup and mangement of OpenVPN or WireGuard on Raspberry Pi
-# https://pivpn.io
+# https://netvpn.io
 # Heavily adapted from the pi-hole.net project and...
 # https://github.com/StarshipEngineer/OpenVPN-Setup/
 #
 # Install with this command (from your Pi):
 #
-# curl -sSfL https://install.pivpn.io | bash
+# curl -sSfL https://install.netvpn.io | bash
 # Make sure you have `curl` installed
 
 ######## VARIABLES #########
-pivpnGitUrl="https://github.com/pivpn/pivpn.git"
-# Uncomment to checkout a custom branch for local pivpn files
-#pivpnGitBranch="custombranchtocheckout"
+netvpnGitUrl="https://github.com/akkietron/NetVPN"
+# Uncomment to checkout a custom branch for local netvpn files
+#netvpnGitBranch="custombranchtocheckout"
 setupVarsFile="setupVars.conf"
-setupConfigDir="/etc/pivpn"
+setupConfigDir="/etc/netvpn"
 tempsetupVarsFile="/tmp/setupVars.conf"
-pivpnFilesDir="/usr/local/src/pivpn"
-pivpnScriptDir="/opt/pivpn"
+netvpnFilesDir="/usr/local/src/netvpn"
+netvpnScriptDir="/opt/netvpn"
 GITBIN="/usr/bin/git"
 
 piholeVersions="/etc/pihole/versions"
-dnsmasqConfig="/etc/dnsmasq.d/02-pivpn.conf"
+dnsmasqConfig="/etc/dnsmasq.d/02-netvpn.conf"
 
 dhcpcdFile="/etc/dhcpcd.conf"
 ovpnUserGroup="openvpn:openvpn"
@@ -47,7 +47,7 @@ BASE_DEPS_ALPINE+=(perl libqrencode-tools)
 
 # Dependencies that where actually installed by the script. For example if the
 # script requires grep and bind9-dnsutils but bind9-dnsutils is already installed, we save
-# grep here. This way when uninstalling PiVPN we won't prompt to remove packages
+# grep here. This way when uninstalling NetVPN we won't prompt to remove packages
 # that may have been installed by the user for other reasons
 INSTALLED_PACKAGES=()
 
@@ -64,8 +64,8 @@ showUnsupportedNICs=false
 
 ######## Some vars that might be empty
 # but need to be defined for checks
-pivpnPERSISTENTKEEPALIVE=""
-pivpnDNS2=""
+netvpnPERSISTENTKEEPALIVE=""
+netvpnDNS2=""
 
 ######## IPv6 related config
 # cli parameter "--noipv6" allows to disable IPv6 which also prevents forced
@@ -78,15 +78,15 @@ pivpnDNS2=""
 ## issues on the client site accessing IPv6 addresses.
 ## This option is useless if routes are set manually.
 ## It's also irrelevant when IPv6 is (forced) enabled.
-pivpnforceipv6route=1
+netvpnforceipv6route=1
 
 ## Enable or disable IPv6.
 ## Leaving it empty or set to "1" will trigger an IPv6 uplink check
-pivpnenableipv6=""
+netvpnenableipv6=""
 
 ## Enable to skip IPv6 connectivity check and also force client IPv6 traffic
 ## through wireguard regardless if there is a working IPv6 route on the server.
-pivpnforceipv6=0
+netvpnforceipv6=0
 
 ######## SCRIPT ########
 
@@ -134,17 +134,17 @@ main() {
 
   welcomeDialogs
 
-  if [[ "${pivpnforceipv6}" -eq 1 ]]; then
+  if [[ "${netvpnforceipv6}" -eq 1 ]]; then
     echo "::: Forced IPv6 config, skipping IPv6 uplink check!"
-    pivpnenableipv6=1
+    netvpnenableipv6=1
   else
-    if [[ -z "${pivpnenableipv6}" ]] \
-      || [[ "${pivpnenableipv6}" -eq 1 ]]; then
+    if [[ -z "${netvpnenableipv6}" ]] \
+      || [[ "${netvpnenableipv6}" -eq 1 ]]; then
       checkipv6uplink
     fi
 
-    if [[ "${pivpnenableipv6}" -eq 0 ]] \
-      && [[ "${pivpnforceipv6route}" -eq 1 ]]; then
+    if [[ "${netvpnenableipv6}" -eq 0 ]] \
+      && [[ "${netvpnforceipv6route}" -eq 1 ]]; then
       askforcedipv6route
     fi
   fi
@@ -166,7 +166,7 @@ main() {
   cloneOrUpdateRepos
 
   # Install
-  if installPiVPN; then
+  if installNetVPN; then
     echo "::: Install Complete..."
   else
     exit 1
@@ -237,18 +237,18 @@ flagsCheck() {
         showUnsupportedNICs=true
         ;;
       "--giturl")
-        pivpnGitUrl="${!j}"
+        netvpnGitUrl="${!j}"
         ;;
       "--gitbranch")
-        pivpnGitBranch="${!j}"
+        netvpnGitBranch="${!j}"
         ;;
       "--noipv6")
-        pivpnforceipv6=0
-        pivpnenableipv6=0
-        pivpnforceipv6route=0
+        netvpnforceipv6=0
+        netvpnenableipv6=0
+        netvpnforceipv6route=0
         ;;
       "--ignoreipv6leak")
-        pivpnforceipv6route=0
+        netvpnforceipv6route=0
         ;;
     esac
   done
@@ -288,7 +288,7 @@ checkExistingInstall() {
   if [[ -r "${setupVars}" ]]; then
     if [[ "${reconfigure}" == 'true' ]]; then
       echo -n "::: --reconfigure passed to install script, "
-      echo "will reinstall PiVPN overwriting existing settings"
+      echo "will reinstall NetVPN overwriting existing settings"
       UpdateCmd="Reconfigure"
     elif [[ "${runUnattended}" == 'true' ]]; then
       ### What should the script do when passing --unattended to
@@ -303,7 +303,7 @@ checkExistingInstall() {
     || [[ "${UpdateCmd}" == "Reconfigure" ]]; then
     :
   elif [[ "${UpdateCmd}" == "Update" ]]; then
-    ${SUDO} "${pivpnScriptDir}/update.sh" "$@"
+    ${SUDO} "${netvpnScriptDir}/update.sh" "$@"
     exit "$?"
   elif [[ "${UpdateCmd}" == "Repair" ]]; then
     # shellcheck disable=SC1090
@@ -314,13 +314,13 @@ checkExistingInstall() {
 
 askAboutExistingInstall() {
   opt1a="Update"
-  opt1b="Get the latest PiVPN scripts"
+  opt1b="Get the latest NetVPN scripts"
 
   opt2a="Repair"
-  opt2b="Reinstall PiVPN using existing settings"
+  opt2b="Reinstall NetVPN using existing settings"
 
   opt3a="Reconfigure"
-  opt3b="Reinstall PiVPN with new settings"
+  opt3b="Reinstall NetVPN with new settings"
 
   UpdateCmd="$(whiptail \
     --title "Existing Install Detected!" \
@@ -528,11 +528,11 @@ verifyFreeDiskSpace() {
   # - Insufficient free disk space
   elif [[ "${existing_free_kilobytes}" -lt "${required_free_kilobytes}" ]]; then
     err "::: Insufficient Disk Space!"
-    err "::: Your system appears to be low on disk space. PiVPN recommends a minimum of ${required_free_kilobytes} KiloBytes."
+    err "::: Your system appears to be low on disk space. NetVPN recommends a minimum of ${required_free_kilobytes} KiloBytes."
     err "::: You only have ${existing_free_kilobytes} KiloBytes free."
     err "::: If this is a new install on a Raspberry Pi you may need to expand your disk."
     err "::: Try running 'sudo raspi-config', and choose the 'expand file system option'"
-    err "::: After rebooting, run this installation again. (curl -sSfL https://install.pivpn.io | bash)"
+    err "::: After rebooting, run this installation again. (curl -sSfL https://install.netvpn.io | bash)"
     err "Insufficient free space, exiting..."
     exit 1
   fi
@@ -558,10 +558,10 @@ notifyPackageUpdatesAvailable() {
   echo ":::"
 
   if [[ "${updatesToInstall}" -eq 0 ]]; then
-    echo "::: Your system is up to date! Continuing with PiVPN installation..."
+    echo "::: Your system is up to date! Continuing with NetVPN installation..."
   else
     echo "::: There are ${updatesToInstall} updates available for your system!"
-    echo "::: We recommend you update your OS after installing PiVPN! "
+    echo "::: We recommend you update your OS after installing NetVPN! "
     echo ":::"
   fi
 }
@@ -702,7 +702,7 @@ preconfigurePackages() {
 
   if [[ "${OPENVPN_SUPPORT}" -eq 0 ]] \
     && [[ "${WIREGUARD_SUPPORT}" -eq 0 ]]; then
-    err "::: Neither OpenVPN nor WireGuard are available to install by PiVPN, exiting..."
+    err "::: Neither OpenVPN nor WireGuard are available to install by NetVPN, exiting..."
     exit 1
   fi
 
@@ -835,7 +835,7 @@ installDependentPackages() {
 
 welcomeDialogs() {
   if [[ "${runUnattended}" == 'true' ]]; then
-    echo "::: PiVPN Automated Installer"
+    echo "::: NetVPN Automated Installer"
     echo -n "::: This installer will transform your ${PLAT} host into an "
     echo "OpenVPN or WireGuard server!"
     echo "::: Initiating network interface"
@@ -845,7 +845,7 @@ welcomeDialogs() {
   # Display the welcome dialog
   whiptail \
     --backtitle "Welcome" \
-    --title "PiVPN Automated Installer" \
+    --title "NetVPN Automated Installer" \
     --msgbox "This installer will transform your Raspberry Pi into an \
 OpenVPN or WireGuard server!" "${r}" "${c}"
 
@@ -853,7 +853,7 @@ OpenVPN or WireGuard server!" "${r}" "${c}"
   whiptail \
     --backtitle "Initiating network interface" \
     --title "Static IP Needed" \
-    --msgbox "The PiVPN is a SERVER so it needs a STATIC IP ADDRESS to \
+    --msgbox "The NetVPN is a SERVER so it needs a STATIC IP ADDRESS to \
 function properly.
 
 In the next section, you can choose to use your current network settings \
@@ -879,7 +879,7 @@ chooseInterface() {
 
   if [[ "${showUnsupportedNICs}" == 'true' ]]; then
     # Show every network interface, could be useful for those who
-    # install PiVPN inside virtual machines or on Raspberry Pis
+    # install NetVPN inside virtual machines or on Raspberry Pis
     # with USB adapters
     availableInterfaces="$(echo "${availableInterfaces}" \
       | awk '{print $2}')"
@@ -932,7 +932,7 @@ chooseInterface() {
       fi
     fi
 
-    if [[ "${pivpnenableipv6}" -eq 1 ]]; then
+    if [[ "${netvpnenableipv6}" -eq 1 ]]; then
       if [[ -z "${IPv6dev}" ]]; then
         if [[ "${interfaceCount}" -eq 1 ]]; then
           IPv6dev="${availableInterfaces}"
@@ -955,7 +955,7 @@ chooseInterface() {
     {
       echo "IPv4dev=${IPv4dev}"
 
-      if [[ "${pivpnenableipv6}" -eq 1 ]] \
+      if [[ "${netvpnenableipv6}" -eq 1 ]] \
         && [[ -z "${IPv6dev}" ]]; then
         echo "IPv6dev=${IPv6dev}"
       fi
@@ -969,7 +969,7 @@ chooseInterface() {
       {
         echo "IPv4dev=${IPv4dev}"
 
-        if [[ "${pivpnenableipv6}" -eq 1 ]]; then
+        if [[ "${netvpnenableipv6}" -eq 1 ]]; then
           IPv6dev="${availableInterfaces}"
           echo "IPv6dev=${IPv6dev}"
         fi
@@ -997,7 +997,7 @@ chooseInterface() {
     exit 1
   fi
 
-  if [[ "${pivpnenableipv6}" -eq 1 ]]; then
+  if [[ "${netvpnenableipv6}" -eq 1 ]]; then
     chooseInterfaceCmd=(whiptail
       --separate-output
       --radiolist "Choose An interface for IPv6, usually the same as used by \
@@ -1108,18 +1108,18 @@ checkipv6uplink() {
     echo -n "::: IPv6 test connections to google.com have failed. "
     echo -n "Disabling IPv6 support. "
     echo "(The curl test failed with code: ${curlv6testres})"
-    pivpnenableipv6=0
+    netvpnenableipv6=0
   else
     echo -n "::: IPv6 test connections to google.com successful. "
     echo "Enabling IPv6 support."
-    pivpnenableipv6=1
+    netvpnenableipv6=1
   fi
 }
 
 askforcedipv6route() {
   if [[ "${runUnattended}" == 'true' ]]; then
     echo "::: Enable forced IPv6 route with no IPv6 uplink on server."
-    echo "pivpnforceipv6route=${pivpnforceipv6route}" >> "${tempsetupVarsFile}"
+    echo "netvpnforceipv6route=${netvpnforceipv6route}" >> "${tempsetupVarsFile}"
     return
   fi
 
@@ -1134,12 +1134,12 @@ though it might cause the client to have slow response when browsing the web \
 on IPv6 networks.
 
 Do you want to force routing IPv6 to block the leakage?" "${r}" "${c}"; then
-    pivpnforceipv6route=1
+    netvpnforceipv6route=1
   else
-    pivpnforceipv6route=0
+    netvpnforceipv6route=0
   fi
 
-  echo "pivpnforceipv6route=${pivpnforceipv6route}" >> "${tempsetupVarsFile}"
+  echo "netvpnforceipv6route=${netvpnforceipv6route}" >> "${tempsetupVarsFile}"
 }
 
 getStaticIPv4Settings() {
@@ -1347,7 +1347,7 @@ If you are not sure, please just keep the default." "${r}" "${c}"
 
 						IP address:    ${IPv4addr}
 						Gateway:       ${IPv4gw}" "${r}" "${c}"; then
-          # If the settings are correct, then we need to set the pivpnIP
+          # If the settings are correct, then we need to set the netvpnIP
           echo "IPv4addr=${IPv4addr}" >> "${tempsetupVarsFile}"
           echo "IPv4gw=${IPv4gw}" >> "${tempsetupVarsFile}"
           # After that's done, the loop ends and we move on
@@ -1591,11 +1591,11 @@ updateRepo() {
     ### FIXME: Never call rm -rf with a plain variable. Never again as SU!
     #${SUDO} rm -rf "${1}"
     if [[ -n "${1}" ]]; then
-      ${SUDO} rm -rf "$(dirname "${1}")/pivpn"
+      ${SUDO} rm -rf "$(dirname "${1}")/netvpn"
     fi
 
     # Go back to /usr/local/src otherwise git will complain when the current
-    # working directory has just been deleted (/usr/local/src/pivpn).
+    # working directory has just been deleted (/usr/local/src/netvpn).
     cd /usr/local/src \
       && ${SUDO} ${GITBIN} clone -q \
         --depth 1 \
@@ -1607,9 +1607,9 @@ updateRepo() {
     cd "${1}" || exit 1
     echo " done!"
 
-    if [[ -n "${pivpnGitBranch}" ]]; then
-      echo ":::     Checkout branch '${pivpnGitBranch}' from ${2} in ${1}..."
-      ${SUDOE} ${GITBIN} checkout -q "${pivpnGitBranch}"
+    if [[ -n "${netvpnGitBranch}" ]]; then
+      echo ":::     Checkout branch '${netvpnGitBranch}' from ${2} in ${1}..."
+      ${SUDOE} ${GITBIN} checkout -q "${netvpnGitBranch}"
       echo ":::     Custom branch checkout done!"
     elif [[ -z "${TESTING+x}" ]]; then
       :
@@ -1628,11 +1628,11 @@ makeRepo() {
   ### FIXME: Never call rm -rf with a plain variable. Never again as SU!
   #${SUDO} rm -rf "${1}"
   if [[ -n "${1}" ]]; then
-    ${SUDO} rm -rf "$(dirname "${1}")/pivpn"
+    ${SUDO} rm -rf "$(dirname "${1}")/netvpn"
   fi
 
   # Go back to /usr/local/src otherwhise git will complain when the current
-  # working directory has just been deleted (/usr/local/src/pivpn).
+  # working directory has just been deleted (/usr/local/src/netvpn).
   cd /usr/local/src \
     && ${SUDO} ${GITBIN} clone -q \
       --depth 1 \
@@ -1644,9 +1644,9 @@ makeRepo() {
   cd "${1}" || exit 1
   echo " done!"
 
-  if [[ -n "${pivpnGitBranch}" ]]; then
-    echo ":::     Checkout branch '${pivpnGitBranch}' from ${2} in ${1}..."
-    ${SUDOE} ${GITBIN} checkout -q "${pivpnGitBranch}"
+  if [[ -n "${netvpnGitBranch}" ]]; then
+    echo ":::     Checkout branch '${netvpnGitBranch}' from ${2} in ${1}..."
+    ${SUDOE} ${GITBIN} checkout -q "${netvpnGitBranch}"
     echo ":::     Custom branch checkout done!"
   elif [[ -z "${TESTING+x}" ]]; then
     :
@@ -1675,15 +1675,15 @@ cloneOrUpdateRepos() {
   ${SUDO} mkdir -p /usr/local/src
 
   # Get Git files
-  getGitFiles "${pivpnFilesDir}" "${pivpnGitUrl}" \
+  getGitFiles "${netvpnFilesDir}" "${netvpnGitUrl}" \
     || {
-      err "!!! Unable to clone ${pivpnGitUrl} into ${pivpnFilesDir}, unable to continue."
+      err "!!! Unable to clone ${netvpnGitUrl} into ${netvpnFilesDir}, unable to continue."
       exit 1
     }
 }
 
-installPiVPN() {
-  ${SUDO} mkdir -p /etc/pivpn/
+installNetVPN() {
+  ${SUDO} mkdir -p /etc/netvpn/
   askWhichVPN
   setVPNDefaultVars
 
@@ -1889,89 +1889,89 @@ generateRandomSubnet() {
 }
 
 setOpenVPNDefaultVars() {
-  pivpnDEV="tun0"
+  netvpnDEV="tun0"
 
   # Allow custom NET via unattend setupVARs file.
   # Use default if not provided.
-  if [[ -z "${pivpnNET}" ]]; then
+  if [[ -z "${netvpnNET}" ]]; then
     echo "::: Generating random subnet in network 10.0.0.0/8..."
-    pivpnNET="$(generateRandomSubnet "10.0.0.0/8" "$subnetClass")"
+    netvpnNET="$(generateRandomSubnet "10.0.0.0/8" "$subnetClass")"
   fi
 
-  if [[ -z "${pivpnNET}" ]]; then
+  if [[ -z "${netvpnNET}" ]]; then
     echo "::: Network 10.0.0.0/8 is unavailable, trying 172.16.0.0/12 next..."
-    pivpnNET="$(generateRandomSubnet "172.16.0.0/12" "$subnetClass")"
+    netvpnNET="$(generateRandomSubnet "172.16.0.0/12" "$subnetClass")"
   fi
 
-  if [[ -z "${pivpnNET}" ]]; then
+  if [[ -z "${netvpnNET}" ]]; then
     echo "::: Network 172.16.0.0/12 is unavailable, trying 192.168.0.0/16 next..."
-    pivpnNET="$(generateRandomSubnet "192.168.0.0/16" "$subnetClass")"
+    netvpnNET="$(generateRandomSubnet "192.168.0.0/16" "$subnetClass")"
   fi
 
-  if [[ -z "${pivpnNET}" ]]; then
+  if [[ -z "${netvpnNET}" ]]; then
     # This should not happen in practice
-    echo "::: Unable to generate a random subnet for PiVPN. Looks like all private networks are in use."
+    echo "::: Unable to generate a random subnet for NetVPN. Looks like all private networks are in use."
     exit 1
   fi
 
-  pivpnNETdec="$(dotIPv4ToDec "${pivpnNET}")"
+  netvpnNETdec="$(dotIPv4ToDec "${netvpnNET}")"
 
-  vpnGwdec="$((pivpnNETdec + 1))"
+  vpnGwdec="$((netvpnNETdec + 1))"
   vpnGw="$(decIPv4ToDot "${vpnGwdec}")"
   vpnGwhex="$(decIPv4ToHex "${vpnGwdec}")"
 
-  if [[ "${pivpnenableipv6}" -eq 1 ]] \
-    && [[ -z "${pivpnNETv6}" ]]; then
-    pivpnNETv6="fd11:5ee:bad:c0de::"
+  if [[ "${netvpnenableipv6}" -eq 1 ]] \
+    && [[ -z "${netvpnNETv6}" ]]; then
+    netvpnNETv6="fd11:5ee:bad:c0de::"
   fi
 
-  if [[ "${pivpnenableipv6}" -eq 1 ]]; then
-    vpnGwv6="${pivpnNETv6}${vpnGwhex}"
+  if [[ "${netvpnenableipv6}" -eq 1 ]]; then
+    vpnGwv6="${netvpnNETv6}${vpnGwhex}"
   fi
 }
 
 setWireguardDefaultVars() {
   # Since WireGuard only uses UDP, askCustomProto() is never
   # called so we set the protocol here.
-  pivpnPROTO="udp"
-  pivpnDEV="wg0"
+  netvpnPROTO="udp"
+  netvpnDEV="wg0"
 
   # Allow custom NET via unattend setupVARs file.
   # Use default if not provided.
-  if [[ -z "${pivpnNET}" ]]; then
+  if [[ -z "${netvpnNET}" ]]; then
     echo "::: Generating random subnet in network 10.0.0.0/8..."
-    pivpnNET="$(generateRandomSubnet "10.0.0.0/8" "$subnetClass")"
+    netvpnNET="$(generateRandomSubnet "10.0.0.0/8" "$subnetClass")"
   fi
 
-  if [[ -z "${pivpnNET}" ]]; then
+  if [[ -z "${netvpnNET}" ]]; then
     echo "::: Network 10.0.0.0/8 is unavailable, trying 172.16.0.0/12 next..."
-    pivpnNET="$(generateRandomSubnet "172.16.0.0/12" "$subnetClass")"
+    netvpnNET="$(generateRandomSubnet "172.16.0.0/12" "$subnetClass")"
   fi
 
-  if [[ -z "${pivpnNET}" ]]; then
+  if [[ -z "${netvpnNET}" ]]; then
     echo "::: Network 172.16.0.0/12 is unavailable, trying 192.168.0.0/16 next..."
-    pivpnNET="$(generateRandomSubnet "192.168.0.0/16" "$subnetClass")"
+    netvpnNET="$(generateRandomSubnet "192.168.0.0/16" "$subnetClass")"
   fi
 
-  if [[ -z "${pivpnNET}" ]]; then
+  if [[ -z "${netvpnNET}" ]]; then
     # This should not happen in practice
-    echo "::: Unable to generate a random subnet for PiVPN. Looks like all private networks are in use."
+    echo "::: Unable to generate a random subnet for NetVPN. Looks like all private networks are in use."
     exit 1
   fi
 
-  pivpnNETdec="$(dotIPv4ToDec "${pivpnNET}")"
+  netvpnNETdec="$(dotIPv4ToDec "${netvpnNET}")"
 
-  vpnGwdec="$((pivpnNETdec + 1))"
+  vpnGwdec="$((netvpnNETdec + 1))"
   vpnGw="$(decIPv4ToDot "${vpnGwdec}")"
   vpnGwhex="$(decIPv4ToHex "${vpnGwdec}")"
 
-  if [[ "${pivpnenableipv6}" -eq 1 ]] \
-    && [[ -z "${pivpnNETv6}" ]]; then
-    pivpnNETv6="fd11:5ee:bad:c0de::"
+  if [[ "${netvpnenableipv6}" -eq 1 ]] \
+    && [[ -z "${netvpnNETv6}" ]]; then
+    netvpnNETv6="fd11:5ee:bad:c0de::"
   fi
 
-  if [[ "${pivpnenableipv6}" -eq 1 ]]; then
-    vpnGwv6="${pivpnNETv6}${vpnGwhex}"
+  if [[ "${netvpnenableipv6}" -eq 1 ]]; then
+    vpnGwv6="${netvpnNETv6}${vpnGwhex}"
   fi
 
   # Allow custom allowed IPs via unattend setupVARs file.
@@ -1979,19 +1979,19 @@ setWireguardDefaultVars() {
   if [[ -z "${ALLOWED_IPS}" ]]; then
     ALLOWED_IPS="0.0.0.0/0"
 
-    # Forward all traffic through PiVPN (i.e. full-tunnel), may be modified by
+    # Forward all traffic through NetVPN (i.e. full-tunnel), may be modified by
     # the user after the installation.
-    if [[ "${pivpnenableipv6}" -eq 1 ]] \
-      || [[ "${pivpnforceipv6route}" -eq 1 ]]; then
+    if [[ "${netvpnenableipv6}" -eq 1 ]] \
+      || [[ "${netvpnforceipv6route}" -eq 1 ]]; then
       ALLOWED_IPS="${ALLOWED_IPS}, ::0/0"
     fi
   fi
 
   # The default MTU should be fine for most users but we allow to set a
   # custom MTU via unattend setupVARs file. Use default if not provided.
-  if [[ -z "${pivpnMTU}" ]]; then
+  if [[ -z "${netvpnMTU}" ]]; then
     # Using default Wireguard MTU
-    pivpnMTU="1420"
+    netvpnMTU="1420"
   fi
 
   CUSTOMIZE=0
@@ -1999,13 +1999,13 @@ setWireguardDefaultVars() {
 
 writeVPNTempVarsFile() {
   {
-    echo "pivpnDEV=${pivpnDEV}"
-    echo "pivpnNET=${pivpnNET}"
+    echo "netvpnDEV=${netvpnDEV}"
+    echo "netvpnNET=${netvpnNET}"
     echo "subnetClass=${subnetClass}"
-    echo "pivpnenableipv6=${pivpnenableipv6}"
+    echo "netvpnenableipv6=${netvpnenableipv6}"
 
-    if [[ "${pivpnenableipv6}" -eq 1 ]]; then
-      echo "pivpnNETv6=\"${pivpnNETv6}\""
+    if [[ "${netvpnenableipv6}" -eq 1 ]]; then
+      echo "netvpnNETv6=\"${netvpnNETv6}\""
       echo "subnetClassv6=${subnetClassv6}"
     fi
 
@@ -2015,14 +2015,14 @@ writeVPNTempVarsFile() {
 
 writeWireguardTempVarsFile() {
   {
-    echo "pivpnPROTO=${pivpnPROTO}"
-    echo "pivpnMTU=${pivpnMTU}"
+    echo "netvpnPROTO=${netvpnPROTO}"
+    echo "netvpnMTU=${netvpnMTU}"
 
     # Write PERSISTENTKEEPALIVE if provided via unattended file
-    # May also be added manually to /etc/pivpn/wireguard/setupVars.conf
+    # May also be added manually to /etc/netvpn/wireguard/setupVars.conf
     # post installation to be used for client profile generation
-    if [[ -n "${pivpnPERSISTENTKEEPALIVE}" ]]; then
-      echo "pivpnPERSISTENTKEEPALIVE=${pivpnPERSISTENTKEEPALIVE}"
+    if [[ -n "${netvpnPERSISTENTKEEPALIVE}" ]]; then
+      echo "netvpnPERSISTENTKEEPALIVE=${netvpnPERSISTENTKEEPALIVE}"
     fi
   } >> "${tempsetupVarsFile}"
 }
@@ -2064,7 +2064,7 @@ askWhichVPN() {
     if [[ "${WIREGUARD_SUPPORT}" -eq 1 ]] \
       && [[ "${OPENVPN_SUPPORT}" -eq 1 ]]; then
       chooseVPNCmd=(whiptail
-        --backtitle "Setup PiVPN"
+        --backtitle "Setup NetVPN"
         --title "Installation mode"
         --separate-output
         --radiolist "WireGuard is a new kind of VPN that provides \
@@ -2106,10 +2106,10 @@ Choose a VPN (press space to select):" "${r}" "${c}" 2)
 askAboutCustomizing() {
   if [[ "${runUnattended}" == 'false' ]]; then
     if whiptail \
-      --backtitle "Setup PiVPN" \
+      --backtitle "Setup NetVPN" \
       --title "Installation mode" \
       --defaultno \
-      --yesno "PiVPN uses the following settings that we believe are good \
+      --yesno "NetVPN uses the following settings that we believe are good \
 defaults for most users. However, we still want to keep flexibility, so if \
 you need to customize them, choose Yes.
 
@@ -2126,7 +2126,7 @@ you need to customize them, choose Yes.
 
 installOpenVPN() {
   local PIVPN_DEPS gpg_path
-  gpg_path="${pivpnFilesDir}/files/etc/apt/repo-public.gpg"
+  gpg_path="${netvpnFilesDir}/files/etc/apt/repo-public.gpg"
   echo "::: Installing OpenVPN from Debian package... "
 
   if [[ "${NEED_OPENVPN_REPO}" -eq 1 ]]; then
@@ -2146,7 +2146,7 @@ installOpenVPN() {
 
     echo "::: Adding OpenVPN repository... "
     echo "deb https://build.openvpn.net/debian/openvpn/stable ${OSCN} main" \
-      | ${SUDO} tee /etc/apt/sources.list.d/pivpn-openvpn-repo.list > /dev/null
+      | ${SUDO} tee /etc/apt/sources.list.d/netvpn-openvpn-repo.list > /dev/null
 
     echo "::: Updating package cache..."
     updatePackageCache
@@ -2197,11 +2197,11 @@ installWireGuard() {
     if [[ "${PLAT}" == "Debian" ]]; then
       echo "::: Adding Debian Bullseye repository... "
       echo "deb https://deb.debian.org/debian/ bullseye main" \
-        | ${SUDO} tee /etc/apt/sources.list.d/pivpn-bullseye-repo.list > /dev/null
+        | ${SUDO} tee /etc/apt/sources.list.d/netvpn-bullseye-repo.list > /dev/null
     else
       echo "::: Adding Raspbian Bullseye repository... "
       echo "deb http://raspbian.raspberrypi.org/raspbian/ bullseye main" \
-        | ${SUDO} tee /etc/apt/sources.list.d/pivpn-bullseye-repo.list > /dev/null
+        | ${SUDO} tee /etc/apt/sources.list.d/netvpn-bullseye-repo.list > /dev/null
     fi
 
     {
@@ -2211,7 +2211,7 @@ installWireGuard() {
       printf 'Package: wireguard wireguard-dkms wireguard-tools\n'
       printf 'Pin: release n=bullseye\n'
       printf 'Pin-Priority: 100\n'
-    } | ${SUDO} tee /etc/apt/preferences.d/pivpn-limit-bullseye > /dev/null
+    } | ${SUDO} tee /etc/apt/preferences.d/netvpn-limit-bullseye > /dev/null
 
     echo "::: Updating package cache..."
     updatePackageCache
@@ -2222,36 +2222,36 @@ installWireGuard() {
 
 askCustomProto() {
   if [[ "${runUnattended}" == 'true' ]]; then
-    if [[ -z "${pivpnPROTO}" ]]; then
+    if [[ -z "${netvpnPROTO}" ]]; then
       echo "::: No TCP/IP protocol specified, using the default protocol udp"
-      pivpnPROTO="udp"
+      netvpnPROTO="udp"
     else
-      pivpnPROTO="${pivpnPROTO,,}"
+      netvpnPROTO="${netvpnPROTO,,}"
 
-      if [[ "${pivpnPROTO}" == "udp" ]] \
-        || [[ "${pivpnPROTO}" == "tcp" ]]; then
-        echo "::: Using the ${pivpnPROTO} protocol"
+      if [[ "${netvpnPROTO}" == "udp" ]] \
+        || [[ "${netvpnPROTO}" == "tcp" ]]; then
+        echo "::: Using the ${netvpnPROTO} protocol"
       else
-        err ":: ${pivpnPROTO} is not a supported TCP/IP protocol, please specify 'udp' or 'tcp'"
+        err ":: ${netvpnPROTO} is not a supported TCP/IP protocol, please specify 'udp' or 'tcp'"
         exit 1
       fi
     fi
 
-    echo "pivpnPROTO=${pivpnPROTO}" >> "${tempsetupVarsFile}"
+    echo "netvpnPROTO=${netvpnPROTO}" >> "${tempsetupVarsFile}"
     return
   fi
 
   if [[ "${CUSTOMIZE}" -eq 0 ]]; then
     if [[ "${VPN}" == "openvpn" ]]; then
-      pivpnPROTO="udp"
-      echo "pivpnPROTO=${pivpnPROTO}" >> "${tempsetupVarsFile}"
+      netvpnPROTO="udp"
+      echo "netvpnPROTO=${netvpnPROTO}" >> "${tempsetupVarsFile}"
       return
     fi
   fi
 
   # Set the available protocols into an array so it can be used
   # with a whiptail dialog
-  if pivpnPROTO="$(whiptail \
+  if netvpnPROTO="$(whiptail \
     --title "Protocol" \
     --radiolist "Choose a protocol (press space to select). \
 Please only choose TCP if you know why you need TCP." "${r}" "${c}" 2 \
@@ -2259,9 +2259,9 @@ Please only choose TCP if you know why you need TCP." "${r}" "${c}" 2 \
     "TCP" "" OFF \
     3>&1 1>&2 2>&3)"; then
     # Convert option into lowercase (UDP->udp)
-    pivpnPROTO="${pivpnPROTO,,}"
-    echo "::: Using protocol: ${pivpnPROTO}"
-    echo "pivpnPROTO=${pivpnPROTO}" >> "${tempsetupVarsFile}"
+    netvpnPROTO="${netvpnPROTO,,}"
+    echo "::: Using protocol: ${netvpnPROTO}"
+    echo "netvpnPROTO=${netvpnPROTO}" >> "${tempsetupVarsFile}"
   else
     err "::: Cancel selected, exiting...."
     exit 1
@@ -2270,31 +2270,31 @@ Please only choose TCP if you know why you need TCP." "${r}" "${c}" 2 \
 
 askCustomPort() {
   if [[ "${runUnattended}" == 'true' ]]; then
-    if [[ -z "${pivpnPORT}" ]]; then
+    if [[ -z "${netvpnPORT}" ]]; then
       if [[ "${VPN}" == "wireguard" ]]; then
         echo "::: No port specified, using the default port 51820"
-        pivpnPORT=51820
+        netvpnPORT=51820
       elif [[ "${VPN}" == "openvpn" ]]; then
-        if [[ "${pivpnPROTO}" == "udp" ]]; then
+        if [[ "${netvpnPROTO}" == "udp" ]]; then
           echo "::: No port specified, using the default port 1194"
-          pivpnPORT=1194
-        elif [[ "${pivpnPROTO}" == "tcp" ]]; then
+          netvpnPORT=1194
+        elif [[ "${netvpnPROTO}" == "tcp" ]]; then
           echo "::: No port specified, using the default port 443"
-          pivpnPORT=443
+          netvpnPORT=443
         fi
       fi
     else
-      if [[ "${pivpnPORT}" =~ ^[0-9]+$ ]] \
-        && [[ "${pivpnPORT}" -ge 1 ]] \
-        && [[ "${pivpnPORT}" -le 65535 ]]; then
-        echo "::: Using port ${pivpnPORT}"
+      if [[ "${netvpnPORT}" =~ ^[0-9]+$ ]] \
+        && [[ "${netvpnPORT}" -ge 1 ]] \
+        && [[ "${netvpnPORT}" -le 65535 ]]; then
+        echo "::: Using port ${netvpnPORT}"
       else
-        err "::: ${pivpnPORT} is not a valid port, use a port within the range [1,65535] (inclusive)"
+        err "::: ${netvpnPORT} is not a valid port, use a port within the range [1,65535] (inclusive)"
         exit 1
       fi
     fi
 
-    echo "pivpnPORT=${pivpnPORT}" >> "${tempsetupVarsFile}"
+    echo "netvpnPORT=${netvpnPORT}" >> "${tempsetupVarsFile}"
     return
   fi
 
@@ -2304,32 +2304,32 @@ askCustomPort() {
     if [[ "${VPN}" == "wireguard" ]]; then
       DEFAULT_PORT=51820
     elif [[ "${VPN}" == "openvpn" ]]; then
-      if [[ "${pivpnPROTO}" == "udp" ]]; then
+      if [[ "${netvpnPROTO}" == "udp" ]]; then
         DEFAULT_PORT=1194
       else
         DEFAULT_PORT=443
       fi
     fi
 
-    if pivpnPORT="$(whiptail \
+    if netvpnPORT="$(whiptail \
       --title "Default ${VPN} Port" \
       --inputbox "You can modify the default ${VPN} port.
 Enter a new value or hit 'Enter' to retain \
 the default" "${r}" "${c}" "${DEFAULT_PORT}" \
       3>&1 1>&2 2>&3)"; then
-      if [[ "${pivpnPORT}" =~ ^[0-9]+$ ]] \
-        && [[ "${pivpnPORT}" -ge 1 ]] \
-        && [[ "${pivpnPORT}" -le 65535 ]]; then
+      if [[ "${netvpnPORT}" =~ ^[0-9]+$ ]] \
+        && [[ "${netvpnPORT}" -ge 1 ]] \
+        && [[ "${netvpnPORT}" -le 65535 ]]; then
         :
       else
-        pivpnPORT="${portInvalid}"
+        netvpnPORT="${portInvalid}"
       fi
     else
       err "::: Cancel selected, exiting...."
       exit 1
     fi
 
-    if [[ "${pivpnPORT}" == "${portInvalid}" ]]; then
+    if [[ "${netvpnPORT}" == "${portInvalid}" ]]; then
       whiptail \
         --backtitle "Invalid Port" \
         --title "Invalid Port" \
@@ -2342,7 +2342,7 @@ the default" "${r}" "${c}" "${DEFAULT_PORT}" \
         --backtitle "Specify Custom Port" \
         --title "Confirm Custom Port Number" \
         --yesno "Are these settings correct?
-    PORT:   ${pivpnPORT}" "${r}" "${c}"; then
+    PORT:   ${netvpnPORT}" "${r}" "${c}"; then
         PORTNumCorrect=true
       else
         # If the settings are wrong, the loop continues
@@ -2352,18 +2352,18 @@ the default" "${r}" "${c}" "${DEFAULT_PORT}" \
   done
 
   # write out the port
-  echo "pivpnPORT=${pivpnPORT}" >> "${tempsetupVarsFile}"
+  echo "netvpnPORT=${netvpnPORT}" >> "${tempsetupVarsFile}"
 }
 
 setupPiholeDNS() {
   # Add a custom hosts file for VPN clients so they appear
-  # as 'name.pivpn' in the Pi-hole dashboard as well as resolve
+  # as 'name.netvpn' in the Pi-hole dashboard as well as resolve
   # by their names.
-  echo "addn-hosts=/etc/pivpn/hosts.${VPN}" \
+  echo "addn-hosts=/etc/netvpn/hosts.${VPN}" \
     | ${SUDO} tee "${dnsmasqConfig}" > /dev/null
 
   # Then create an empty hosts file or clear if it exists.
-  ${SUDO} bash -c "> /etc/pivpn/hosts.${VPN}"
+  ${SUDO} bash -c "> /etc/netvpn/hosts.${VPN}"
 
   # shellcheck disable=SC1090
   CORE_VERSION="$(source "$piholeVersions" && echo "${CORE_VERSION}")"
@@ -2380,20 +2380,20 @@ setupPiholeDNS() {
   fi
 
   # Use the Raspberry Pi VPN IP as DNS server.
-  pivpnDNS1="${vpnGw}"
+  netvpnDNS1="${vpnGw}"
 
   {
-    echo "pivpnDNS1=${pivpnDNS1}"
-    echo "pivpnDNS2=${pivpnDNS2}"
+    echo "netvpnDNS1=${netvpnDNS1}"
+    echo "netvpnDNS2=${netvpnDNS2}"
   } >> "${tempsetupVarsFile}"
 
   # Allow incoming DNS requests through UFW.
   if [[ "${USING_UFW}" -eq 1 ]]; then
     ${SUDO} ufw insert 1 allow in \
-      on "${pivpnDEV}" to any port 53 \
-      from "${pivpnNET}/${subnetClass}" > /dev/null
+      on "${netvpnDEV}" to any port 53 \
+      from "${netvpnNET}/${subnetClass}" > /dev/null
   else
-    ${SUDO} iptables -I INPUT -i "${pivpnDEV}" \
+    ${SUDO} iptables -I INPUT -i "${netvpnDEV}" \
       -p udp --dport 53 -j ACCEPT -m comment --comment "pihole-DNS-rule"
   fi
 }
@@ -2404,40 +2404,40 @@ askClientDNS() {
       && command -v pihole > /dev/null; then
       setupPiholeDNS
       return
-    elif [[ -z "${pivpnDNS1}" ]] \
-      && [[ -n "${pivpnDNS2}" ]]; then
-      pivpnDNS1="${pivpnDNS2}"
-      unset pivpnDNS2
-    elif [[ -z "${pivpnDNS1}" ]] \
-      && [[ -z "${pivpnDNS2}" ]]; then
-      pivpnDNS1="9.9.9.9"
-      pivpnDNS2="149.112.112.112"
+    elif [[ -z "${netvpnDNS1}" ]] \
+      && [[ -n "${netvpnDNS2}" ]]; then
+      netvpnDNS1="${netvpnDNS2}"
+      unset netvpnDNS2
+    elif [[ -z "${netvpnDNS1}" ]] \
+      && [[ -z "${netvpnDNS2}" ]]; then
+      netvpnDNS1="9.9.9.9"
+      netvpnDNS2="149.112.112.112"
       echo -n "::: No DNS provider specified, "
-      echo "using Quad9 DNS (${pivpnDNS1} ${pivpnDNS2})"
+      echo "using Quad9 DNS (${netvpnDNS1} ${netvpnDNS2})"
     fi
 
     local INVALID_DNS_SETTINGS=0
 
-    if ! validIP "${pivpnDNS1}"; then
+    if ! validIP "${netvpnDNS1}"; then
       INVALID_DNS_SETTINGS=1
-      echo "::: Invalid DNS ${pivpnDNS1}"
+      echo "::: Invalid DNS ${netvpnDNS1}"
     fi
 
-    if [[ -n "${pivpnDNS2}" ]] \
-      && ! validIP "${pivpnDNS2}"; then
+    if [[ -n "${netvpnDNS2}" ]] \
+      && ! validIP "${netvpnDNS2}"; then
       INVALID_DNS_SETTINGS=1
-      echo "::: Invalid DNS ${pivpnDNS2}"
+      echo "::: Invalid DNS ${netvpnDNS2}"
     fi
 
     if [[ "${INVALID_DNS_SETTINGS}" -eq 0 ]]; then
-      echo "::: Using DNS ${pivpnDNS1} ${pivpnDNS2}"
+      echo "::: Using DNS ${netvpnDNS1} ${netvpnDNS2}"
     else
       exit 1
     fi
 
     {
-      echo "pivpnDNS1=${pivpnDNS1}"
-      echo "pivpnDNS2=${pivpnDNS2}"
+      echo "netvpnDNS1=${netvpnDNS1}"
+      echo "netvpnDNS2=${netvpnDNS2}"
     } >> "${tempsetupVarsFile}"
     return
   fi
@@ -2446,7 +2446,7 @@ askClientDNS() {
   if command -v pihole > /dev/null; then
     if [[ "${usePiholeDNS}" == 'true' ]] \
       || whiptail \
-        --backtitle "Setup PiVPN" \
+        --backtitle "Setup NetVPN" \
         --title "Pi-hole" \
         --yesno "We have detected a Pi-hole installation, \
 do you want to use it as the DNS server for the VPN, so you \
@@ -2456,18 +2456,18 @@ get ad blocking on the go?" "${r}" "${c}"; then
     fi
   fi
 
-  DNSChoseCmd=(whiptail
-    --backtitle "Setup PiVPN"
-    --title "DNS Provider"
-    --separate-output
+  DNSChoseCmd=(whiptail \
+    --backtitle "Setup NetVPN" \
+    --title "DNS Provider" \
+    --separate-output \
     --radiolist "Select the DNS Provider for your VPN Clients \
 (press space to select).
 To use your own, select Custom.
 
 In case you have a local resolver running, i.e. unbound, select \
-\"PiVPN-is-local-DNS\" and make sure your resolver is listening on \
+\"NetVPN-is-local-DNS\" and make sure your resolver is listening on \
 \"${vpnGw}\", allowing requests from \
-\"${pivpnNET}/${subnetClass}\"." "${r}" "${c}" 6)
+\"${netvpnNET}/${subnetClass}\"." "${r}" "${c}" 6)
   DNSChooseOptions=(Quad9 "" on
     OpenDNS "" off
     Level3 "" off
@@ -2476,7 +2476,7 @@ In case you have a local resolver running, i.e. unbound, select \
     FamilyShield "" off
     CloudFlare "" off
     Google "" off
-    PiVPN-is-local-DNS "" off
+    NetVPN-is-local-DNS "" off
     Custom "" off)
 
   if DNSchoices="$("${DNSChoseCmd[@]}" \
@@ -2492,57 +2492,57 @@ In case you have a local resolver running, i.e. unbound, select \
         ["FamilyShield"]="208.67.222.123 208.67.220.123"
         ["CloudFlare"]="1.1.1.1 1.0.0.1"
         ["Google"]="8.8.8.8 8.8.4.4"
-        ["PiVPN-is-local-DNS"]="${vpnGw}")
-      pivpnDNS1=$(awk '{print $1}' <<< "${DNS_MAP["${DNSchoices}"]}")
-      pivpnDNS2=$(awk '{print $2}' <<< "${DNS_MAP["${DNSchoices}"]}")
+        ["NetVPN-is-local-DNS"]="${vpnGw}")
+      netvpnDNS1=$(awk '{print $1}' <<< "${DNS_MAP["${DNSchoices}"]}")
+      netvpnDNS2=$(awk '{print $2}' <<< "${DNS_MAP["${DNSchoices}"]}")
     else
       until [[ "${DNSSettingsCorrect}" == 'true' ]]; do
         strInvalid="Invalid"
 
-        if pivpnDNS="$(whiptail \
+        if netvpnDNS="$(whiptail \
           --backtitle "Specify Upstream DNS Provider(s)" \
           --inputbox "Enter your desired upstream DNS provider(s), \
 separated by a comma.
 
 For example '1.1.1.1, 9.9.9.9'" "${r}" "${c}" "" \
           3>&1 1>&2 2>&3)"; then
-          pivpnDNS1="$(echo "${pivpnDNS}" \
+          netvpnDNS1="$(echo "${netvpnDNS}" \
             | sed 's/[, \t]\+/,/g' \
             | awk -F, '{print$1}')"
-          pivpnDNS2="$(echo "${pivpnDNS}" \
+          netvpnDNS2="$(echo "${netvpnDNS}" \
             | sed 's/[, \t]\+/,/g' \
             | awk -F, '{print$2}')"
 
-          if ! validIP "${pivpnDNS1}" \
-            || [[ ! "${pivpnDNS1}" ]]; then
-            pivpnDNS1="${strInvalid}"
+          if ! validIP "${netvpnDNS1}" \
+            || [[ ! "${netvpnDNS1}" ]]; then
+            netvpnDNS1="${strInvalid}"
           fi
 
-          if ! validIP "${pivpnDNS2}" \
-            && [[ "${pivpnDNS2}" ]]; then
-            pivpnDNS2="${strInvalid}"
+          if ! validIP "${netvpnDNS2}" \
+            && [[ "${netvpnDNS2}" ]]; then
+            netvpnDNS2="${strInvalid}"
           fi
         else
           err "::: Cancel selected, exiting...."
           exit 1
         fi
 
-        if [[ "${pivpnDNS1}" == "${strInvalid}" ]] \
-          || [[ "${pivpnDNS2}" == "${strInvalid}" ]]; then
+        if [[ "${netvpnDNS1}" == "${strInvalid}" ]] \
+          || [[ "${netvpnDNS2}" == "${strInvalid}" ]]; then
           whiptail \
             --backtitle "Invalid IP" \
             --title "Invalid IP" \
             --msgbox "One or both entered IP addresses were invalid. \
 Please try again.
-    DNS Server 1:   ${pivpnDNS1}
-    DNS Server 2:   ${pivpnDNS2}" "${r}" "${c}"
+    DNS Server 1:   ${netvpnDNS1}
+    DNS Server 2:   ${netvpnDNS2}" "${r}" "${c}"
 
-          if [[ "${pivpnDNS1}" == "${strInvalid}" ]]; then
-            pivpnDNS1=""
+          if [[ "${netvpnDNS1}" == "${strInvalid}" ]]; then
+            netvpnDNS1=""
           fi
 
-          if [[ "${pivpnDNS2}" == "${strInvalid}" ]]; then
-            pivpnDNS2=""
+          if [[ "${netvpnDNS2}" == "${strInvalid}" ]]; then
+            netvpnDNS2=""
           fi
 
           DNSSettingsCorrect=false
@@ -2551,8 +2551,8 @@ Please try again.
             --backtitle "Specify Upstream DNS Provider(s)" \
             --title "Upstream DNS Provider(s)" \
             --yesno "Are these settings correct?
-    DNS Server 1:   ${pivpnDNS1}
-    DNS Server 2:   ${pivpnDNS2}" "${r}" "${c}"; then
+    DNS Server 1:   ${netvpnDNS1}
+    DNS Server 2:   ${netvpnDNS2}" "${r}" "${c}"; then
             DNSSettingsCorrect=true
           else
             # If the settings are wrong, the loop continues
@@ -2568,8 +2568,8 @@ Please try again.
   fi
 
   {
-    echo "pivpnDNS1=${pivpnDNS1}"
-    echo "pivpnDNS2=${pivpnDNS2}"
+    echo "netvpnDNS1=${netvpnDNS1}"
+    echo "netvpnDNS2=${netvpnDNS2}"
   } >> "${tempsetupVarsFile}"
 }
 
@@ -2587,24 +2587,24 @@ validDomain() {
 # search domain if they have one.
 askCustomDomain() {
   if [[ "${runUnattended}" == 'true' ]]; then
-    if [[ -n "${pivpnSEARCHDOMAIN}" ]]; then
-      if validDomain "${pivpnSEARCHDOMAIN}"; then
-        echo "::: Using custom domain ${pivpnSEARCHDOMAIN}"
+    if [[ -n "${netvpnSEARCHDOMAIN}" ]]; then
+      if validDomain "${netvpnSEARCHDOMAIN}"; then
+        echo "::: Using custom domain ${netvpnSEARCHDOMAIN}"
       else
-        err "::: Custom domain ${pivpnSEARCHDOMAIN} is not valid"
+        err "::: Custom domain ${netvpnSEARCHDOMAIN} is not valid"
         exit 1
       fi
     else
       echo "::: Skipping custom domain"
     fi
 
-    echo "pivpnSEARCHDOMAIN=${pivpnSEARCHDOMAIN}" >> "${tempsetupVarsFile}"
+    echo "netvpnSEARCHDOMAIN=${netvpnSEARCHDOMAIN}" >> "${tempsetupVarsFile}"
     return
   fi
 
   if [[ "${CUSTOMIZE}" -eq 0 ]]; then
     if [[ "${VPN}" == "openvpn" ]]; then
-      echo "pivpnSEARCHDOMAIN=${pivpnSEARCHDOMAIN}" >> "${tempsetupVarsFile}"
+      echo "netvpnSEARCHDOMAIN=${netvpnSEARCHDOMAIN}" >> "${tempsetupVarsFile}"
       return
     fi
   fi
@@ -2619,17 +2619,17 @@ askCustomDomain() {
 (This is only for advanced users who have their own domain)
 " "${r}" "${c}"; then
     until [[ "${DomainSettingsCorrect}" == 'true' ]]; do
-      if pivpnSEARCHDOMAIN="$(whiptail \
+      if netvpnSEARCHDOMAIN="$(whiptail \
         --inputbox "Enter Custom Domain
 Format: mydomain.com" "${r}" "${c}" \
         --title "Custom Domain" \
         3>&1 1>&2 2>&3)"; then
-        if validDomain "${pivpnSEARCHDOMAIN}"; then
+        if validDomain "${netvpnSEARCHDOMAIN}"; then
           if whiptail \
             --backtitle "Custom Search Domain" \
             --title "Custom Search Domain" \
             --yesno "Are these settings correct?
-    Custom Search Domain: ${pivpnSEARCHDOMAIN}" "${r}" "${c}"; then
+    Custom Search Domain: ${netvpnSEARCHDOMAIN}" "${r}" "${c}"; then
             DomainSettingsCorrect=true
           else
             # If the settings are wrong, the loop continues
@@ -2640,7 +2640,7 @@ Format: mydomain.com" "${r}" "${c}" \
             --backtitle "Invalid Domain" \
             --title "Invalid Domain" \
             --msgbox "Domain is invalid. Please try again.
-    DOMAIN:   ${pivpnSEARCHDOMAIN}
+    DOMAIN:   ${netvpnSEARCHDOMAIN}
 " "${r}" "${c}"
           DomainSettingsCorrect=false
         fi
@@ -2651,7 +2651,7 @@ Format: mydomain.com" "${r}" "${c}" \
     done
   fi
 
-  echo "pivpnSEARCHDOMAIN=${pivpnSEARCHDOMAIN}" >> "${tempsetupVarsFile}"
+  echo "netvpnSEARCHDOMAIN=${netvpnSEARCHDOMAIN}" >> "${tempsetupVarsFile}"
 }
 
 askPublicIPOrDNS() {
@@ -2667,21 +2667,21 @@ askPublicIPOrDNS() {
   fi
 
   if [[ "${runUnattended}" == 'true' ]]; then
-    if [[ -z "${pivpnHOST}" ]]; then
+    if [[ -z "${netvpnHOST}" ]]; then
       echo "::: No IP or domain name specified, using public IP ${IPv4pub}"
-      pivpnHOST="${IPv4pub}"
+      netvpnHOST="${IPv4pub}"
     else
-      if validIP "${pivpnHOST}"; then
-        echo "::: Using public IP ${pivpnHOST}"
-      elif validDomain "${pivpnHOST}"; then
-        echo "::: Using domain name ${pivpnHOST}"
+      if validIP "${netvpnHOST}"; then
+        echo "::: Using public IP ${netvpnHOST}"
+      elif validDomain "${netvpnHOST}"; then
+        echo "::: Using domain name ${netvpnHOST}"
       else
-        err "::: ${pivpnHOST} is not a valid IP or domain name"
+        err "::: ${netvpnHOST} is not a valid IP or domain name"
         exit 1
       fi
     fi
 
-    echo "pivpnHOST=${pivpnHOST}" >> "${tempsetupVarsFile}"
+    echo "netvpnHOST=${netvpnHOST}" >> "${tempsetupVarsFile}"
     return
   fi
 
@@ -2697,21 +2697,21 @@ askPublicIPOrDNS() {
     "DNS Entry" "Use a public DNS" "OFF" \
     3>&1 1>&2 2>&3)"; then
     if [[ "${METH}" == "${IPv4pub}" ]]; then
-      pivpnHOST="${IPv4pub}"
+      netvpnHOST="${IPv4pub}"
     else
       until [[ "${publicDNSCorrect}" == 'true' ]]; do
         until [[ "${publicDNSValid}" == 'true' ]]; do
           if PUBLICDNS="$(whiptail \
-            --title "PiVPN Setup" \
+            --title "NetVPN Setup" \
             --inputbox "What is the public DNS \
 name of this Server?" "${r}" "${c}" \
             3>&1 1>&2 2>&3)"; then
             if validDomain "${PUBLICDNS}"; then
               publicDNSValid=true
-              pivpnHOST="${PUBLICDNS}"
+              netvpnHOST="${PUBLICDNS}"
             else
               whiptail \
-                --backtitle "PiVPN Setup" \
+                --backtitle "NetVPN Setup" \
                 --title "Invalid DNS name" \
                 --msgbox "This DNS name is invalid. Please try again.
     DNS name:   ${PUBLICDNS}
@@ -2725,7 +2725,7 @@ name of this Server?" "${r}" "${c}" \
         done
 
         if whiptail \
-          --backtitle "PiVPN Setup" \
+          --backtitle "NetVPN Setup" \
           --title "Confirm DNS Name" \
           --yesno "Is this correct?
 Public DNS Name:  ${PUBLICDNS}" "${r}" "${c}"; then
@@ -2741,7 +2741,7 @@ Public DNS Name:  ${PUBLICDNS}" "${r}" "${c}"; then
     exit 1
   fi
 
-  echo "pivpnHOST=${pivpnHOST}" >> "${tempsetupVarsFile}"
+  echo "netvpnHOST=${netvpnHOST}" >> "${tempsetupVarsFile}"
 }
 
 askEncryption() {
@@ -2751,32 +2751,32 @@ askEncryption() {
       TWO_POINT_FIVE=1
       echo "::: Using OpenVPN 2.5 features"
 
-      if [[ -z "${pivpnENCRYPT}" ]]; then
-        pivpnENCRYPT=256
+      if [[ -z "${netvpnENCRYPT}" ]]; then
+        netvpnENCRYPT=256
       fi
 
-      if [[ "${pivpnENCRYPT}" -eq 256 ]] \
-        || [[ "${pivpnENCRYPT}" -eq 384 ]] \
-        || [[ "${pivpnENCRYPT}" -eq 521 ]]; then
-        echo "::: Using a ${pivpnENCRYPT}-bit certificate"
+      if [[ "${netvpnENCRYPT}" -eq 256 ]] \
+        || [[ "${netvpnENCRYPT}" -eq 384 ]] \
+        || [[ "${netvpnENCRYPT}" -eq 521 ]]; then
+        echo "::: Using a ${netvpnENCRYPT}-bit certificate"
       else
-        err "::: ${pivpnENCRYPT} is not a valid certificate size, use 256, 384, or 521"
+        err "::: ${netvpnENCRYPT} is not a valid certificate size, use 256, 384, or 521"
         exit 1
       fi
     else
       TWO_POINT_FIVE=0
       echo "::: Using traditional OpenVPN configuration"
 
-      if [[ -z "${pivpnENCRYPT}" ]]; then
-        pivpnENCRYPT=2048
+      if [[ -z "${netvpnENCRYPT}" ]]; then
+        netvpnENCRYPT=2048
       fi
 
-      if [[ "${pivpnENCRYPT}" -eq 2048 ]] \
-        || [[ "${pivpnENCRYPT}" -eq 3072 ]] \
-        || [[ "${pivpnENCRYPT}" -eq 4096 ]]; then
-        echo "::: Using a ${pivpnENCRYPT}-bit certificate"
+      if [[ "${netvpnENCRYPT}" -eq 2048 ]] \
+        || [[ "${netvpnENCRYPT}" -eq 3072 ]] \
+        || [[ "${netvpnENCRYPT}" -eq 4096 ]]; then
+        echo "::: Using a ${netvpnENCRYPT}-bit certificate"
       else
-        err "::: ${pivpnENCRYPT} is not a valid certificate size, use 2048, 3072, or 4096"
+        err "::: ${netvpnENCRYPT} is not a valid certificate size, use 2048, 3072, or 4096"
         exit 1
       fi
 
@@ -2793,7 +2793,7 @@ askEncryption() {
 
     {
       echo "TWO_POINT_FIVE=${TWO_POINT_FIVE}"
-      echo "pivpnENCRYPT=${pivpnENCRYPT}"
+      echo "netvpnENCRYPT=${netvpnENCRYPT}"
       echo "USE_PREDEFINED_DH_PARAM=${USE_PREDEFINED_DH_PARAM}"
     } >> "${tempsetupVarsFile}"
     return
@@ -2802,11 +2802,11 @@ askEncryption() {
   if [[ "${CUSTOMIZE}" -eq 0 ]]; then
     if [[ "${VPN}" == "openvpn" ]]; then
       TWO_POINT_FIVE=1
-      pivpnENCRYPT=256
+      netvpnENCRYPT=256
 
       {
         echo "TWO_POINT_FIVE=${TWO_POINT_FIVE}"
-        echo "pivpnENCRYPT=${pivpnENCRYPT}"
+        echo "netvpnENCRYPT=${netvpnENCRYPT}"
         echo "USE_PREDEFINED_DH_PARAM=${USE_PREDEFINED_DH_PARAM}"
       } >> "${tempsetupVarsFile}"
       return
@@ -2829,7 +2829,7 @@ compatibility." \
     "${r}" \
     "${c}"; then
     TWO_POINT_FIVE=1
-    pivpnENCRYPT="$(whiptail \
+    netvpnENCRYPT="$(whiptail \
       --backtitle "Setup OpenVPN" \
       --title "ECDSA certificate size" \
       --radiolist "Choose the desired size of your certificate \
@@ -2845,7 +2845,7 @@ that 256 bits are already as secure as 3072 bit RSA." "${r}" "${c}" 3 \
       3>&1 1>&2 2>&3)"
   else
     TWO_POINT_FIVE=0
-    pivpnENCRYPT="$(whiptail \
+    netvpnENCRYPT="$(whiptail \
       --backtitle "Setup OpenVPN" \
       --title "RSA certificate size" \
       --radiolist "Choose the desired size of your certificate \
@@ -2868,7 +2868,7 @@ then grab a cup of joe and pick 4096 bits." "${r}" "${c}" 3 \
     exit 1
   fi
 
-  if [[ "${pivpnENCRYPT}" -ge 2048 ]] \
+  if [[ "${netvpnENCRYPT}" -ge 2048 ]] \
     && whiptail \
       --backtitle "Setup OpenVPN" \
       --title "Generate Diffie-Hellman Parameters" \
@@ -2887,7 +2887,7 @@ parameters will be generated on your device." "${r}" "${c}"; then
 
   {
     echo "TWO_POINT_FIVE=${TWO_POINT_FIVE}"
-    echo "pivpnENCRYPT=${pivpnENCRYPT}"
+    echo "netvpnENCRYPT=${netvpnENCRYPT}"
     echo "USE_PREDEFINED_DH_PARAM=${USE_PREDEFINED_DH_PARAM}"
   } >> "${tempsetupVarsFile}"
 }
@@ -2945,13 +2945,13 @@ confOpenVPN() {
   cd /etc/openvpn/easy-rsa || exit 1
 
   if [[ "${TWO_POINT_FIVE}" -eq 1 ]]; then
-    pivpnCERT="ec"
-    pivpnTLSVERS="1.3"
-    pivpnTLSPROT="tls-crypt-v2"
+    netvpnCERT="ec"
+    netvpnTLSVERS="1.3"
+    netvpnTLSPROT="tls-crypt-v2"
   else
-    pivpnCERT="rsa"
-    pivpnTLSVERS="1.2"
-    pivpnTLSPROT="tls-auth"
+    netvpnCERT="rsa"
+    netvpnTLSVERS="1.2"
+    netvpnTLSPROT="tls-auth"
   fi
 
   # Remove any previous keys
@@ -2962,7 +2962,7 @@ confOpenVPN() {
 
   # Set elliptic curve certificate or traditional rsa certificates
   ${SUDOE} sed -i \
-    "s/#set_var EASYRSA_ALGO.*/set_var EASYRSA_ALGO ${pivpnCERT}/" \
+    "s/#set_var EASYRSA_ALGO.*/set_var EASYRSA_ALGO ${netvpnCERT}/" \
     pki/vars
 
   # Set expiration for the CRL to 10 years
@@ -2970,10 +2970,10 @@ confOpenVPN() {
     's/#set_var EASYRSA_CRL_DAYS.*/set_var EASYRSA_CRL_DAYS 3650/' \
     pki/vars
 
-  if [[ "${pivpnENCRYPT}" -ge 2048 ]]; then
+  if [[ "${netvpnENCRYPT}" -ge 2048 ]]; then
     # Set custom key size if different from the default
     sed_pattern="s/#set_var EASYRSA_KEY_SIZE.*/"
-    sed_pattern="${sed_pattern} set_var EASYRSA_KEY_SIZE ${pivpnENCRYPT}/"
+    sed_pattern="${sed_pattern} set_var EASYRSA_KEY_SIZE ${netvpnENCRYPT}/"
     ${SUDOE} sed -i "${sed_pattern}" pki/vars
   else
     # If less than 2048, then it must be 521 or lower,
@@ -2985,7 +2985,7 @@ confOpenVPN() {
 
     sed_pattern="s/#set_var EASYRSA_CURVE.*/"
     sed_pattern="${sed_pattern} set_var EASYRSA_CURVE"
-    sed_pattern="${sed_pattern} ${ECDSA_MAP["${pivpnENCRYPT}"]}/"
+    sed_pattern="${sed_pattern} ${ECDSA_MAP["${netvpnENCRYPT}"]}/"
     ${SUDOE} sed -i "${sed_pattern}" pki/vars
   fi
 
@@ -2994,7 +2994,7 @@ confOpenVPN() {
   ${SUDOE} ./easyrsa --batch build-ca nopass
   printf "\\n::: CA Complete.\\n"
 
-  if [[ "${pivpnCERT}" == "rsa" ]] \
+  if [[ "${netvpnCERT}" == "rsa" ]] \
     && [[ "${USE_PREDEFINED_DH_PARAM}" -ne 1 ]]; then
     if [[ "${runUnattended}" == 'true' ]]; then
       echo "::: The server key, Diffie-Hellman parameters, \
@@ -3009,8 +3009,8 @@ and HMAC key will now be generated." \
         "${r}" \
         "${c}"
     fi
-  elif [[ "${pivpnCERT}" == "ec" ]] \
-    || [[ "${pivpnCERT}" == "rsa" && "${USE_PREDEFINED_DH_PARAM}" -eq 1 ]]; then
+  elif [[ "${netvpnCERT}" == "ec" ]] \
+    || [[ "${netvpnCERT}" == "rsa" && "${USE_PREDEFINED_DH_PARAM}" -eq 1 ]]; then
     if [[ "${runUnattended}" == 'true' ]]; then
       echo "::: The server key and HMAC key will now be generated."
     else
@@ -3028,17 +3028,17 @@ and HMAC key will now be generated." \
   EASYRSA_CERT_EXPIRE=3650 ${SUDOE} \
     ./easyrsa --batch build-server-full "${SERVER_NAME}" nopass
 
-  if [[ "${pivpnCERT}" == "rsa" ]]; then
+  if [[ "${netvpnCERT}" == "rsa" ]]; then
     if [[ "${USE_PREDEFINED_DH_PARAM}" -eq 1 ]]; then
-      file_pattern="${pivpnFilesDir}/files/etc/openvpn"
-      file_pattern="${file_pattern}/easy-rsa/pki/ffdhe${pivpnENCRYPT}.pem"
+      file_pattern="${netvpnFilesDir}/files/etc/openvpn"
+      file_pattern="${file_pattern}/easy-rsa/pki/ffdhe${netvpnENCRYPT}.pem"
       # Use Diffie-Hellman parameters from RFC 7919 (FFDHE)
       ${SUDOE} install -m 644 "${file_pattern}" \
-        "pki/dh${pivpnENCRYPT}.pem"
+        "pki/dh${netvpnENCRYPT}.pem"
     else
       # Generate Diffie-Hellman key exchange
       ${SUDOE} ./easyrsa gen-dh
-      ${SUDOE} mv pki/dh.pem "pki/dh${pivpnENCRYPT}".pem
+      ${SUDOE} mv pki/dh.pem "pki/dh${netvpnENCRYPT}".pem
     fi
   fi
 
@@ -3073,61 +3073,61 @@ and HMAC key will now be generated." \
 
   # Write config file for server using the template.txt file
   ${SUDO} install -m 644 \
-    "${pivpnFilesDir}/files/etc/openvpn/server_config.txt" \
+    "${netvpnFilesDir}/files/etc/openvpn/server_config.txt" \
     /etc/openvpn/server.conf
 
   # Apply client DNS settings
   ${SUDOE} sed -i \
-    "0,/\(dhcp-option DNS \)/ s/\(dhcp-option DNS \).*/\1${pivpnDNS1}\"/" \
+    "0,/\(dhcp-option DNS \)/ s/\(dhcp-option DNS \).*/\1${netvpnDNS1}\"/" \
     /etc/openvpn/server.conf
 
-  if [[ -z "${pivpnDNS2}" ]]; then
+  if [[ -z "${netvpnDNS2}" ]]; then
     ${SUDOE} sed -i '/\(dhcp-option DNS \)/{n;N;d}' /etc/openvpn/server.conf
   else
     ${SUDOE} sed -i \
-      "0,/\(dhcp-option DNS \)/! s/\(dhcp-option DNS \).*/\1${pivpnDNS2}\"/" \
+      "0,/\(dhcp-option DNS \)/! s/\(dhcp-option DNS \).*/\1${netvpnDNS2}\"/" \
       /etc/openvpn/server.conf
   fi
 
   # Set the user encryption key size
   ${SUDO} sed -i \
-    "s#\\(dh /etc/openvpn/easy-rsa/pki/dh\\).*#\\1${pivpnENCRYPT}.pem#" \
+    "s#\\(dh /etc/openvpn/easy-rsa/pki/dh\\).*#\\1${netvpnENCRYPT}.pem#" \
     /etc/openvpn/server.conf
 
-  if [[ "${pivpnTLSPROT}" == "tls-crypt-v2" ]]; then
+  if [[ "${netvpnTLSPROT}" == "tls-crypt-v2" ]]; then
     # If they enabled 2.5 use tls-crypt-v2 instead of tls-auth to encrypt control channel
     ta_path="/etc/openvpn/easy-rsa/pki/ta.key"
     tc_v2_path="/etc/openvpn/easy-rsa/pki/tc-v2/server.key"
-    tc_v2_cmd_path="/opt/pivpn/openvpn/TLSCryptV2Verify.sh"
+    tc_v2_cmd_path="/opt/netvpn/openvpn/TLSCryptV2Verify.sh"
     sed_pattern='s|tls-auth '"${ta_path}"' 0|tls-crypt-v2 '"${tc_v2_path}"'\ntls-crypt-v2-verify '"${tc_v2_cmd_path}"'\nscript-security 2|'
     ${SUDO} sed -i "${sed_pattern}" /etc/openvpn/server.conf
   fi
 
-  if [[ "${pivpnCERT}" == "ec" ]]; then
+  if [[ "${netvpnCERT}" == "ec" ]]; then
     # If they enabled 2.5 disable dh parameters and specify the
     # matching curve from the ECDSA certificate
     sed_pattern="s/\(dh \/etc\/openvpn\/easy-rsa\/pki\/dh\).*/dh"
     sed_pattern="${sed_pattern} none\necdh-curve"
-    sed_pattern="${sed_pattern} ${ECDSA_MAP["${pivpnENCRYPT}"]}/"
+    sed_pattern="${sed_pattern} ${ECDSA_MAP["${netvpnENCRYPT}"]}/"
     ${SUDO} sed -i \
       "${sed_pattern}" \
       /etc/openvpn/server.conf
-  elif [[ "${pivpnCERT}" == "rsa" ]]; then
+  elif [[ "${netvpnCERT}" == "rsa" ]]; then
     # Otherwise set the user encryption key size
     ${SUDO} sed -i \
-      "s#\\(dh /etc/openvpn/easy-rsa/pki/dh\\).*#\\1${pivpnENCRYPT}.pem#" \
+      "s#\\(dh /etc/openvpn/easy-rsa/pki/dh\\).*#\\1${netvpnENCRYPT}.pem#" \
       /etc/openvpn/server.conf
   fi
 
   # Increase minimum TLS version to limit ciphersuites reducing attack surface
-  if [[ "${pivpnTLSVERS}" == "1.3" ]]; then
+  if [[ "${netvpnTLSVERS}" == "1.3" ]]; then
     ${SUDO} sed -i "s|tls-version-min 1.2|tls-version-min 1.3|" "/etc/openvpn/server.conf"
-    ${SUDO} sed -i "s|tls-version-min 1.2|tls-version-min 1.3|" "${pivpnFilesDir}/files/etc/openvpn/easy-rsa/pki/Default.txt"
+    ${SUDO} sed -i "s|tls-version-min 1.2|tls-version-min 1.3|" "${netvpnFilesDir}/files/etc/openvpn/easy-rsa/pki/Default.txt"
   fi
 
   # if they modified VPN network put value in server.conf
-  if [[ "${pivpnNET}" != "10.8.0.0" ]]; then
-    ${SUDO} sed -i "s/10.8.0.0/${pivpnNET}/g" /etc/openvpn/server.conf
+  if [[ "${netvpnNET}" != "10.8.0.0" ]]; then
+    ${SUDO} sed -i "s/10.8.0.0/${netvpnNET}/g" /etc/openvpn/server.conf
   fi
 
   # if they modified VPN subnet class put value in server.conf
@@ -3138,19 +3138,19 @@ and HMAC key will now be generated." \
   fi
 
   # if they modified port put value in server.conf
-  if [[ "${pivpnPORT}" -ne 1194 ]]; then
-    ${SUDO} sed -i "s/1194/${pivpnPORT}/g" /etc/openvpn/server.conf
+  if [[ "${netvpnPORT}" -ne 1194 ]]; then
+    ${SUDO} sed -i "s/1194/${netvpnPORT}/g" /etc/openvpn/server.conf
   fi
 
   # if they modified protocol put value in server.conf
-  if [[ "${pivpnPROTO}" != "udp" ]]; then
+  if [[ "${netvpnPROTO}" != "udp" ]]; then
     ${SUDO} sed -i "s/proto udp/proto tcp/g" /etc/openvpn/server.conf
   fi
 
-  if [[ -n "${pivpnSEARCHDOMAIN}" ]]; then
+  if [[ -n "${netvpnSEARCHDOMAIN}" ]]; then
     sed_pattern="0,/\\(.*dhcp-option.*\\)/"
     sed_pattern="${sed_pattern}s//push \"dhcp-option "
-    sed_pattern="${sed_pattern}DOMAIN ${pivpnSEARCHDOMAIN}\" \\n&/"
+    sed_pattern="${sed_pattern}DOMAIN ${netvpnSEARCHDOMAIN}\" \\n&/"
     ${SUDO} sed -i \
       "${sed_pattern}" \
       /etc/openvpn/server.conf
@@ -3177,22 +3177,22 @@ and HMAC key will now be generated." \
 
 confOVPN() {
   ${SUDO} install -m 644 \
-    "${pivpnFilesDir}/files/etc/openvpn/easy-rsa/pki/Default.txt" \
+    "${netvpnFilesDir}/files/etc/openvpn/easy-rsa/pki/Default.txt" \
     /etc/openvpn/easy-rsa/pki/Default.txt
 
   ${SUDO} sed -i \
-    "s/IPv4pub/${pivpnHOST}/" \
+    "s/IPv4pub/${netvpnHOST}/" \
     /etc/openvpn/easy-rsa/pki/Default.txt
 
   # if they modified port put value in Default.txt for clients to use
-  if [[ "${pivpnPORT}" -ne 1194 ]]; then
+  if [[ "${netvpnPORT}" -ne 1194 ]]; then
     ${SUDO} sed -i \
-      "s/1194/${pivpnPORT}/g" \
+      "s/1194/${netvpnPORT}/g" \
       /etc/openvpn/easy-rsa/pki/Default.txt
   fi
 
   # if they modified protocol put value in Default.txt for clients to use
-  if [[ "${pivpnPROTO}" != "udp" ]]; then
+  if [[ "${netvpnPROTO}" != "udp" ]]; then
     ${SUDO} sed -i \
       "s/proto udp/proto tcp/g" \
       /etc/openvpn/easy-rsa/pki/Default.txt
@@ -3203,7 +3203,7 @@ confOVPN() {
     "s/SRVRNAME/${SERVER_NAME}/" \
     /etc/openvpn/easy-rsa/pki/Default.txt
 
-  if [[ "${pivpnTLSPROT}" == "tls-crypt-v2" ]]; then
+  if [[ "${netvpnTLSPROT}" == "tls-crypt-v2" ]]; then
     # If they enabled 2.5 remove key-direction options since it's not required
     ${SUDO} sed -i \
       "/key-direction 1/d" \
@@ -3217,12 +3217,12 @@ confWireGuard() {
   if [[ "${PLAT}" == 'Alpine' ]]; then
     echo '::: Adding wg-quick unit'
     ${SUDO} install -m 0755 \
-      "${pivpnFilesDir}/files/etc/init.d/wg-quick" \
+      "${netvpnFilesDir}/files/etc/init.d/wg-quick" \
       /etc/init.d/wg-quick
   else
     if ! grep -q 'ExecReload' /lib/systemd/system/wg-quick@.service; then
       local wireguard_service_path
-      wireguard_service_path="${pivpnFilesDir}/files/etc/systemd/system"
+      wireguard_service_path="${netvpnFilesDir}/files/etc/systemd/system"
       wireguard_service_path="${wireguard_service_path}/wg-quick@.service.d"
       wireguard_service_path="${wireguard_service_path}/override.conf"
       echo "::: Adding additional reload job type for wg-quick unit"
@@ -3289,14 +3289,14 @@ confWireGuard() {
     echo "PrivateKey = $(${SUDO} cat /etc/wireguard/keys/server_priv)"
     echo -n "Address = ${vpnGw}/${subnetClass}"
 
-    if [[ "${pivpnenableipv6}" -eq 1 ]]; then
+    if [[ "${netvpnenableipv6}" -eq 1 ]]; then
       echo ",${vpnGwv6}/${subnetClassv6}"
     else
       echo
     fi
 
-    echo "MTU = ${pivpnMTU}"
-    echo "ListenPort = ${pivpnPORT}"
+    echo "MTU = ${netvpnMTU}"
+    echo "ListenPort = ${netvpnPORT}"
   } | ${SUDO} tee /etc/wireguard/wg0.conf &> /dev/null
 
   echo "::: Server config generated."
@@ -3305,16 +3305,16 @@ confWireGuard() {
 confNetwork() {
   # Enable forwarding of internet traffic
   echo 'net.ipv4.ip_forward=1' \
-    | ${SUDO} tee /etc/sysctl.d/99-pivpn.conf > /dev/null
+    | ${SUDO} tee /etc/sysctl.d/99-netvpn.conf > /dev/null
 
-  if [[ "${pivpnenableipv6}" -eq 1 ]]; then
+  if [[ "${netvpnenableipv6}" -eq 1 ]]; then
     {
       echo "net.ipv6.conf.all.forwarding=1"
       echo "net.ipv6.conf.${IPv6dev}.accept_ra=2"
-    } | ${SUDO} tee -a /etc/sysctl.d/99-pivpn.conf > /dev/null
+    } | ${SUDO} tee -a /etc/sysctl.d/99-netvpn.conf > /dev/null
   fi
 
-  ${SUDO} sysctl -p /etc/sysctl.d/99-pivpn.conf > /dev/null
+  ${SUDO} sysctl -p /etc/sysctl.d/99-netvpn.conf > /dev/null
 
   if [[ "${PLAT}" == 'Alpine' ]]; then
 	${SUDO} rc-update add sysctl
@@ -3329,14 +3329,14 @@ confNetwork() {
     ### Note: no safeguard against imcomplete content as a result of previous
     ### failures.
     if [[ -s /etc/ufw/before.rules ]]; then
-      ${SUDO} cp -f /etc/ufw/before.rules /etc/ufw/before.rules.pre-pivpn
+      ${SUDO} cp -f /etc/ufw/before.rules /etc/ufw/before.rules.pre-netvpn
     else
       err "${0}: ERR: Sorry, won't touch empty file \"/etc/ufw/before.rules\"."
       exit 1
     fi
 
     if [[ -s /etc/ufw/before6.rules ]]; then
-      ${SUDO} cp -f /etc/ufw/before6.rules /etc/ufw/before6.rules.pre-pivpn
+      ${SUDO} cp -f /etc/ufw/before6.rules /etc/ufw/before6.rules.pre-netvpn
     else
       err "${0}: ERR: Sorry, won't touch empty file \"/etc/ufw/before6.rules\"."
       exit 1
@@ -3351,7 +3351,7 @@ confNetwork() {
         sed_pattern="/^*nat/{n;"
         sed_pattern="${sed_pattern}s/\(:POSTROUTING ACCEPT .*\)/"
         sed_pattern="${sed_pattern}\1\n-I POSTROUTING"
-        sed_pattern="${sed_pattern} -s ${pivpnNET}\/${subnetClass}"
+        sed_pattern="${sed_pattern} -s ${netvpnNET}\/${subnetClass}"
         sed_pattern="${sed_pattern} -o ${IPv4dev}"
         sed_pattern="${sed_pattern} -j MASQUERADE"
         sed_pattern="${sed_pattern} -m comment"
@@ -3363,7 +3363,7 @@ confNetwork() {
       sed_pattern="/delete these required/i"
       sed_pattern="${sed_pattern} *nat\n:POSTROUTING ACCEPT [0:0]\n"
       sed_pattern="${sed_pattern}-I POSTROUTING"
-      sed_pattern="${sed_pattern} -s ${pivpnNET}\/${subnetClass}"
+      sed_pattern="${sed_pattern} -s ${netvpnNET}\/${subnetClass}"
       sed_pattern="${sed_pattern} -o ${IPv4dev}"
       sed_pattern="${sed_pattern} -j MASQUERADE"
       sed_pattern="${sed_pattern} -m comment"
@@ -3372,7 +3372,7 @@ confNetwork() {
       ${SUDO} sed "${sed_pattern}" -i /etc/ufw/before.rules
     fi
 
-    if [[ "${pivpnenableipv6}" -eq 1 ]]; then
+    if [[ "${netvpnenableipv6}" -eq 1 ]]; then
       local sed_pattern
 
       if ${SUDO} grep -q "*nat" /etc/ufw/before6.rules; then
@@ -3381,7 +3381,7 @@ confNetwork() {
           sed_pattern="/^*nat/{n;"
           sed_pattern="${sed_pattern}s/\(:POSTROUTING ACCEPT .*\)/"
           sed_pattern="${sed_pattern}\1\n-I POSTROUTING"
-          sed_pattern="${sed_pattern} -s ${pivpnNETv6}\/${subnetClassv6}"
+          sed_pattern="${sed_pattern} -s ${netvpnNETv6}\/${subnetClassv6}"
           sed_pattern="${sed_pattern} -o ${IPv6dev}"
           sed_pattern="${sed_pattern} -j MASQUERADE"
           sed_pattern="${sed_pattern} -m comment"
@@ -3393,7 +3393,7 @@ confNetwork() {
         sed_pattern="/delete these required/i"
         sed_pattern="${sed_pattern} *nat\n:POSTROUTING ACCEPT [0:0]\n"
         sed_pattern="${sed_pattern}-I POSTROUTING"
-        sed_pattern="${sed_pattern} -s ${pivpnNETv6}\/${subnetClassv6}"
+        sed_pattern="${sed_pattern} -s ${netvpnNETv6}\/${subnetClassv6}"
         sed_pattern="${sed_pattern} -o ${IPv6dev}"
         sed_pattern="${sed_pattern} -j MASQUERADE"
         sed_pattern="${sed_pattern} -m comment"
@@ -3408,18 +3408,18 @@ confNetwork() {
     # (in case there are other rules that may drop the traffic)
     if ${SUDO} ufw status numbered | grep -E "\[.[0-9]{1}\]" > /dev/null; then
       ${SUDO} ufw insert 1 \
-        allow "${pivpnPORT}/${pivpnPROTO}" \
+        allow "${netvpnPORT}/${netvpnPROTO}" \
         comment "allow-${VPN}" > /dev/null
 
       ${SUDO} ufw route insert 1 \
-        allow in on "${pivpnDEV}" \
-        from "${pivpnNET}/${subnetClass}" \
+        allow in on "${netvpnDEV}" \
+        from "${netvpnNET}/${subnetClass}" \
         out on "${IPv4dev}" to any > /dev/null
 
-      if [[ "${pivpnenableipv6}" -eq 1 ]]; then
+      if [[ "${netvpnenableipv6}" -eq 1 ]]; then
         ${SUDO} ufw route \
-          allow in on "${pivpnDEV}" \
-          from "${pivpnNETv6}/${subnetClassv6}" \
+          allow in on "${netvpnDEV}" \
+          from "${netvpnNETv6}/${subnetClassv6}" \
           out on "${IPv6dev}" to any > /dev/null
       fi
     fi
@@ -3438,20 +3438,20 @@ confNetwork() {
     ${SUDO} iptables \
       -t nat \
       -I POSTROUTING \
-      -s "${pivpnNET}/${subnetClass}" \
+      -s "${netvpnNET}/${subnetClass}" \
       -o "${IPv4dev}" \
       -j MASQUERADE \
       -m comment \
       --comment "${VPN}-nat-rule"
   fi
 
-  if [[ "${pivpnenableipv6}" -eq 1 ]]; then
+  if [[ "${netvpnenableipv6}" -eq 1 ]]; then
     if ! ${SUDO} ip6tables -t nat -S \
       | grep -q "${VPN}-nat-rule"; then
       ${SUDO} ip6tables \
         -t nat \
         -I POSTROUTING \
-        -s "${pivpnNETv6}/${subnetClassv6}" \
+        -s "${netvpnNETv6}/${subnetClassv6}" \
         -o "${IPv6dev}" \
         -j MASQUERADE \
         -m comment \
@@ -3478,7 +3478,7 @@ confNetwork() {
     | grep '^-P' \
     | awk '{print $3}')"
 
-  if [[ "${pivpnenableipv6}" -eq 1 ]]; then
+  if [[ "${netvpnenableipv6}" -eq 1 ]]; then
     INPUT_RULES_COUNTv6="$(${SUDO} ip6tables -S INPUT \
       | grep -vcE '(^-P|ufw-)')"
     FORWARD_RULES_COUNTv6="$(${SUDO} ip6tables -S FORWARD \
@@ -3502,8 +3502,8 @@ confNetwork() {
       ${SUDO} iptables \
         -I INPUT 1 \
         -i "${IPv4dev}" \
-        -p "${pivpnPROTO}" \
-        --dport "${pivpnPORT}" \
+        -p "${netvpnPROTO}" \
+        --dport "${netvpnPORT}" \
         -j ACCEPT \
         -m comment \
         --comment "${VPN}-input-rule"
@@ -3514,7 +3514,7 @@ confNetwork() {
     INPUT_CHAIN_EDITED=0
   fi
 
-  if [[ "${pivpnenableipv6}" -eq 1 ]]; then
+  if [[ "${netvpnenableipv6}" -eq 1 ]]; then
     if [[ "${INPUT_RULES_COUNTv6}" -ne 0 ]] \
       || [[ "${INPUT_POLICYv6}" != "ACCEPT" ]]; then
       if ! ${SUDO} ip6tables -S \
@@ -3522,8 +3522,8 @@ confNetwork() {
         ${SUDO} ip6tables \
           -I INPUT 1 \
           -i "${IPv6dev}" \
-          -p "${pivpnPROTO}" \
-          --dport "${pivpnPORT}" \
+          -p "${netvpnPROTO}" \
+          --dport "${netvpnPORT}" \
           -j ACCEPT \
           -m comment \
           --comment "${VPN}-input-rule"
@@ -3541,9 +3541,9 @@ confNetwork() {
       | grep -q "${VPN}-forward-rule"; then
       ${SUDO} iptables \
         -I FORWARD 1 \
-        -d "${pivpnNET}/${subnetClass}" \
+        -d "${netvpnNET}/${subnetClass}" \
         -i "${IPv4dev}" \
-        -o "${pivpnDEV}" \
+        -o "${netvpnDEV}" \
         -m conntrack \
         --ctstate RELATED,ESTABLISHED \
         -j ACCEPT \
@@ -3551,8 +3551,8 @@ confNetwork() {
         --comment "${VPN}-forward-rule"
       ${SUDO} iptables \
         -I FORWARD 2 \
-        -s "${pivpnNET}/${subnetClass}" \
-        -i "${pivpnDEV}" \
+        -s "${netvpnNET}/${subnetClass}" \
+        -i "${netvpnDEV}" \
         -o "${IPv4dev}" \
         -j ACCEPT \
         -m comment \
@@ -3564,16 +3564,16 @@ confNetwork() {
     FORWARD_CHAIN_EDITED=0
   fi
 
-  if [[ "${pivpnenableipv6}" -eq 1 ]]; then
+  if [[ "${netvpnenableipv6}" -eq 1 ]]; then
     if [[ "${FORWARD_RULES_COUNTv6}" -ne 0 ]] \
       || [[ "${FORWARD_POLICYv6}" != "ACCEPT" ]]; then
       if ! ${SUDO} ip6tables -S \
         | grep -q "${VPN}-forward-rule"; then
         ${SUDO} ip6tables \
           -I FORWARD 1 \
-          -d "${pivpnNETv6}/${subnetClassv6}" \
+          -d "${netvpnNETv6}/${subnetClassv6}" \
           -i "${IPv6dev}" \
-          -o "${pivpnDEV}" \
+          -o "${netvpnDEV}" \
           -m conntrack \
           --ctstate RELATED,ESTABLISHED \
           -j ACCEPT \
@@ -3581,8 +3581,8 @@ confNetwork() {
           --comment "${VPN}-forward-rule"
         ${SUDO} ip6tables \
           -I FORWARD 2 \
-          -s "${pivpnNETv6}/${subnetClassv6}" \
-          -i "${pivpnDEV}" \
+          -s "${netvpnNETv6}/${subnetClassv6}" \
+          -i "${netvpnDEV}" \
           -o "${IPv6dev}" \
           -j ACCEPT \
           -m comment \
@@ -3670,246 +3670,3 @@ restartServices() {
         ${SUDO} rc-update add wg-quick default &> /dev/null
         ${SUDO} rc-service -s wg-quick restart
         ${SUDO} rc-service -N wg-quick start
-      fi
-
-      ;;
-  esac
-}
-
-askUnattendedUpgrades() {
-  if [[ "${runUnattended}" == 'true' ]]; then
-    if [[ -z "${UNATTUPG}" ]]; then
-      UNATTUPG=1
-      echo "::: No preference regarding unattended upgrades, assuming yes"
-    else
-      if [[ "${UNATTUPG}" -eq 1 ]]; then
-        echo "::: Enabling unattended upgrades"
-      else
-        echo "::: Skipping unattended upgrades"
-      fi
-    fi
-
-    echo "UNATTUPG=${UNATTUPG}" >> "${tempsetupVarsFile}"
-    return
-  fi
-
-  whiptail \
-    --msgbox \
-    --backtitle "Security Updates" \
-    --title "Unattended Upgrades" \
-    "Since this server will have at least one port open to the internet, \
-it is recommended you enable unattended-upgrades.
-This feature will check daily for security package updates only and apply \
-them when necessary.
-It will NOT automatically reboot the server so to fully apply some updates \
-you should periodically reboot." \
-    "${r}" \
-    "${c}"
-
-  if whiptail \
-    --backtitle "Security Updates" \
-    --title "Unattended Upgrades" \
-    --yesno \
-    "Do you want to enable unattended upgrades \
-of security patches to this server?" \
-    "${r}" \
-    "${c}"; then
-    UNATTUPG=1
-  else
-    UNATTUPG=0
-  fi
-
-  echo "UNATTUPG=${UNATTUPG}" >> "${tempsetupVarsFile}"
-}
-
-confUnattendedUpgrades() {
-  local PIVPN_DEPS periodic_file
-
-  if [[ "${PKG_MANAGER}" == 'apt-get' ]]; then
-    PIVPN_DEPS=(unattended-upgrades)
-    installDependentPackages PIVPN_DEPS[@]
-    aptConfDir="/etc/apt/apt.conf.d"
-
-    # Raspbian's unattended-upgrades package downloads Debian's config,
-    # so we copy over the proper config
-    # https://github.com/mvo5/unattended-upgrades/blob/master/data/50unattended-upgrades.Raspbian
-    # Add the remaining settings for all other distributions
-    if [[ "${PLAT}" == "Raspbian" ]]; then
-      ${SUDO} install -m 644 \
-        "${pivpnFilesDir}/files${aptConfDir}/50unattended-upgrades.Raspbian" \
-        "${aptConfDir}/50unattended-upgrades"
-    fi
-
-    if [[ "${PLAT}" == "Ubuntu" ]]; then
-      periodic_file="${aptConfDir}/10periodic"
-    else
-      periodic_file="${aptConfDir}/02periodic"
-    fi
-
-    # Ubuntu 50unattended-upgrades should already just have security enabled
-    # so we just need to configure the 10periodic file
-    {
-      echo "APT::Periodic::Update-Package-Lists \"1\";"
-      echo "APT::Periodic::Download-Upgradeable-Packages \"1\";"
-      echo "APT::Periodic::Unattended-Upgrade \"1\";"
-
-      if [[ "${PLAT}" == "Ubuntu" ]]; then
-        echo "APT::Periodic::AutocleanInterval \"5\";"
-      else
-        echo "APT::Periodic::Enable \"1\";"
-        echo "APT::Periodic::AutocleanInterval \"7\";"
-        echo "APT::Periodic::Verbose \"0\";"
-      fi
-    } | ${SUDO} tee "${periodic_file}" > /dev/null
-
-    # Enable automatic updates via the bullseye repository
-    # when installing from debian package
-    if [[ "${VPN}" == "wireguard" ]]; then
-      if [[ -f /etc/apt/sources.list.d/pivpn-bullseye-repo.list ]]; then
-        if ! grep -q "\"o=${PLAT},n=bullseye\";" \
-          "${aptConfDir}/50unattended-upgrades"; then
-          local sed_pattern
-          sed_pattern=" {/a\"o=${PLAT},n=bullseye\";"
-          sed_pattern="${sed_pattern} {/a\"o=${PLAT},n=bullseye\";"
-          ${SUDO} sed -i "${sed_pattern}" "${aptConfDir}/50unattended-upgrades"
-        fi
-      fi
-    fi
-  elif [[ "${PKG_MANAGER}" == 'apk' ]]; then
-    local down_dir
-    ## install dependencies
-    # shellcheck disable=SC2086
-    ${SUDO} ${PKG_INSTALL} unzip asciidoctor
-
-    if ! down_dir="$(mktemp -d)"; then
-      err "::: Failed to create download directory for apk-autoupdate!"
-      exit 1
-    fi
-
-    ## download binaries
-    curl -fLo "${down_dir}/master.zip" \
-      https://github.com/jirutka/apk-autoupdate/archive/refs/heads/master.zip
-    unzip -qd "${down_dir}" "${down_dir}/master.zip"
-
-    (
-      cd "${down_dir}/apk-autoupdate-master" || exi
-
-      ## personalize binaries
-      sed -i -E -e 's/^(prefix\s*:=).*/\1 \/usr/' Makefile
-
-      ## install
-      ${SUDO} make install
-
-      if ! command -v apk-autoupdate &> /dev/null; then
-        err "::: Failed to compile and install apk-autoupdate!"
-        exit
-      fi
-    ) || exit 1
-
-    ${SUDO} install -m 0755 \
-      "${pivpnFilesDir}/files/etc/apk/personal_autoupdate.conf" \
-      /etc/apk/personal_autoupdate.conf
-    ${SUDO} apk-autoupdate /etc/apk/personal_autoupdate.conf
-  fi
-}
-
-writeConfigFiles() {
-  # Save installation setting to the final location
-  echo "INSTALLED_PACKAGES=(${INSTALLED_PACKAGES[*]})" >> "${tempsetupVarsFile}"
-  echo "::: Setupfiles copied to ${setupConfigDir}/${VPN}/${setupVarsFile}"
-  ${SUDO} mkdir -p "${setupConfigDir}/${VPN}/"
-  ${SUDO} cp "${tempsetupVarsFile}" "${setupConfigDir}/${VPN}/${setupVarsFile}"
-}
-
-installScripts() {
-  # Ensure /opt exists (issue #607)
-  ${SUDO} mkdir -p /opt
-
-  if [[ "${VPN}" == 'wireguard' ]]; then
-    othervpn='openvpn'
-  else
-    othervpn='wireguard'
-  fi
-
-  # Symlink scripts from /usr/local/src/pivpn to their various locations
-  echo -e "::: Installing scripts to ${pivpnScriptDir}..."
-
-  # if the other protocol file exists it has been installed
-  if [[ -r "${setupConfigDir}/${othervpn}/${setupVarsFile}" ]]; then
-    # Both are installed, no bash completion, unlink if already there
-    ${SUDO} unlink /etc/bash_completion.d/pivpn
-
-    # Unlink the protocol specific pivpn script and symlink the common
-    # script to the location instead
-    ${SUDO} unlink /usr/local/bin/pivpn
-    ${SUDO} ln -sfT "${pivpnFilesDir}/scripts/pivpn" /usr/local/bin/pivpn
-  else
-    # Check if bash_completion scripts dir exists and creates it if not
-    ${SUDO} mkdir -p /etc/bash_completion.d
-
-    # Only one protocol is installed, symlink bash completion, the pivpn script
-    # and the script directory
-    ${SUDO} ln -sfT \
-      "${pivpnFilesDir}/scripts/${VPN}/bash-completion" \
-      /etc/bash_completion.d/pivpn
-    ${SUDO} ln -sfT \
-      "${pivpnFilesDir}/scripts/${VPN}/pivpn.sh" \
-      /usr/local/bin/pivpn
-    ${SUDO} ln -sf "${pivpnFilesDir}/scripts/" "${pivpnScriptDir}"
-    # shellcheck disable=SC1091
-    . /etc/bash_completion.d/pivpn
-  fi
-
-  echo " done."
-}
-
-displayFinalMessage() {
-  # Ensure that cached writes reach persistent storage
-  echo "::: Flushing writes to disk..."
-
-  sync
-
-  echo "::: done."
-
-  if [[ "${runUnattended}" == 'true' ]]; then
-    echo "::: Installation Complete!"
-    echo "::: Now run 'pivpn add' to create the client profiles."
-    echo "::: Run 'pivpn help' to see what else you can do!"
-    echo
-    echo -n "::: If you run into any issue, please read all our documentation "
-    echo "carefully."
-    echo "::: All incomplete posts or bug reports will be ignored or deleted."
-    echo
-    echo "::: Thank you for using PiVPN."
-    echo "::: It is strongly recommended you reboot after installation."
-    return
-  fi
-
-  # Final completion message to user
-  whiptail \
-    --backtitle "Make it so." \
-    --title "Installation Complete!" \
-    --msgbox "Now run 'pivpn add' to create the client profiles.
-Run 'pivpn help' to see what else you can do!
-
-If you run into any issue, please read all our documentation carefully.
-All incomplete posts or bug reports will be ignored or deleted.
-
-Thank you for using PiVPN." "${r}" "${c}"
-
-  if whiptail \
-    --title "Reboot" \
-    --defaultno \
-    --yesno "It is strongly recommended you reboot after installation. \
-Would you like to reboot now?" "${r}" "${c}"; then
-    whiptail \
-      --title "Rebooting" \
-      --msgbox "The system will now reboot." "${r}" "${c}"
-    printf "\\nRebooting system...\\n"
-    ${SUDO} sleep 3
-
-    ${SUDO} reboot
-  fi
-}
-
-main "$@"

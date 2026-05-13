@@ -2,7 +2,7 @@ language: shell
 
 addons:
   hosts:
-    - pivpn.test
+    - netvpn.test
 
 services:
   - docker

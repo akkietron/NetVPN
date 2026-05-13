@@ -1,6 +1,6 @@
 #!/bin/bash
 
-_pivpn() {
+_netvpn() {
   local cur prev opts
   COMPREPLY=()
   cur="${COMP_WORDS[COMP_CWORD]}"
@@ -22,4 +22,4 @@ _pivpn() {
   return 0
 }
 
-complete -F _pivpn pivpn
+complete -F _netvpn netvpn

@@ -2,7 +2,7 @@
 
 ### Constants
 CHECK_PKG_INSTALLED='dpkg-query -s'
-scriptDir="/opt/pivpn"
+scriptDir="/opt/netvpn"
 
 ### Functions
 err() {
@@ -20,13 +20,13 @@ backup() {
 }
 
 showHelp() {
-  echo "::: To pass off to the pivpn command for each protocol"
+  echo "::: To pass off to the netvpn command for each protocol"
   echo ":::"
-  echo "::: Usage: pivpn wg  <command> [option]"
-  echo "::: Usage: pivpn ovpn <command> [option]"
+  echo "::: Usage: netvpn wg  <command> [option]"
+  echo "::: Usage: netvpn ovpn <command> [option]"
   echo ":::"
   echo ":::  -h,  help             Show this help dialog"
-  echo ":::  -u,  uninstall        Uninstall pivpn from your system!"
+  echo ":::  -u,  uninstall        Uninstall netvpn from your system!"
   echo ":::  -bk, backup           Backup VPN configs and user profiles"
   exit 0
 }
@@ -53,10 +53,10 @@ fi
 # Handle redirecting to specific functions based on arguments
 case "${1}" in
   wg)
-    "${scriptDir}/wireguard/pivpn.sh" "${@:2}"
+    "${scriptDir}/wireguard/netvpn.sh" "${@:2}"
     ;;
   ovpn)
-    "${scriptDir}/openvpn/pivpn.sh" "${@:2}"
+    "${scriptDir}/openvpn/netvpn.sh" "${@:2}"
     ;;
   "-h" | "help")
     showHelp

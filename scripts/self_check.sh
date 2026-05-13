@@ -58,7 +58,7 @@ if [[ "${USING_UFW}" -eq 0 ]]; then
   if iptables \
     -t nat \
     -C POSTROUTING \
-    -s "${pivpnNET}/${subnetClass}" \
+    -s "${netvpnNET}/${subnetClass}" \
     -o "${IPv4dev}" \
     -j MASQUERADE \
     -m comment \
@@ -74,7 +74,7 @@ if [[ "${USING_UFW}" -eq 0 ]]; then
       iptables \
         -t nat \
         -I POSTROUTING \
-        -s "${pivpnNET}/${subnetClass}" \
+        -s "${netvpnNET}/${subnetClass}" \
         -o "${IPv4dev}" \
         -j MASQUERADE \
         -m comment \
@@ -126,8 +126,8 @@ if [[ "${USING_UFW}" -eq 0 ]]; then
     # shellcheck disable=SC2154
     if iptables \
       -C FORWARD \
-      -s "${pivpnNET}/${subnetClass}" \
-      -i "${pivpnDEV}" \
+      -s "${netvpnNET}/${subnetClass}" \
+      -i "${netvpnDEV}" \
       -o "${IPv4dev}" \
       -j ACCEPT \
       -m comment \
@@ -142,9 +142,9 @@ if [[ "${USING_UFW}" -eq 0 ]]; then
       if [[ "${REPLY}" =~ ^[Yy]$ ]] || [[ -z "${REPLY}" ]]; then
         iptables \
           -I FORWARD 1 \
-          -d "${pivpnNET}/${subnetClass}" \
+          -d "${netvpnNET}/${subnetClass}" \
           -i "${IPv4dev}" \
-          -o "${pivpnDEV}" \
+          -o "${netvpnDEV}" \
           -m conntrack \
           --ctstate RELATED,ESTABLISHED \
           -j ACCEPT \
@@ -153,8 +153,8 @@ if [[ "${USING_UFW}" -eq 0 ]]; then
 
         iptables \
           -I FORWARD 2 \
-          -s "${pivpnNET}/${subnetClass}" \
-          -i "${pivpnDEV}" \
+          -s "${netvpnNET}/${subnetClass}" \
+          -i "${netvpnDEV}" \
           -o "${IPv4dev}" \
           -j ACCEPT \
           -m comment \
@@ -182,7 +182,7 @@ else
   if iptables \
     -t nat \
     -C POSTROUTING \
-    -s "${pivpnNET}/${subnetClass}" \
+    -s "${netvpnNET}/${subnetClass}" \
     -o "${IPv4dev}" \
     -j MASQUERADE \
     -m comment \
@@ -198,7 +198,7 @@ else
       sed_pattern='/delete these required/i'
       sed_pattern="${sed_pattern} *nat\n:POSTROUTING ACCEPT [0:0]\n"
       sed_pattern="${sed_pattern} -I POSTROUTING"
-      sed_pattern="${sed_pattern} -s ${pivpnNET}/${subnetClass}"
+      sed_pattern="${sed_pattern} -s ${netvpnNET}/${subnetClass}"
       sed_pattern="${sed_pattern} -o ${IPv4dev}"
       sed_pattern="${sed_pattern} -j MASQUERADE"
       sed_pattern="${sed_pattern} -m comment"
@@ -214,8 +214,8 @@ else
 
   if iptables \
     -C ufw-user-input \
-    -p "${pivpnPROTO}" \
-    --dport "${pivpnPORT}" \
+    -p "${netvpnPROTO}" \
+    --dport "${netvpnPORT}" \
     -j ACCEPT &> /dev/null; then
     echo ":: [OK] Ufw input rule set"
   else
@@ -225,7 +225,7 @@ else
       REPLY
 
     if [[ "${REPLY}" =~ ^[Yy]$ ]] || [[ -z "${REPLY}" ]]; then
-      ufw insert 1 allow "${pivpnPORT}"/"${pivpnPROTO}"
+      ufw insert 1 allow "${netvpnPORT}"/"${netvpnPROTO}"
       ufw reload
       echo "Done"
     fi
@@ -233,9 +233,9 @@ else
 
   if iptables \
     -C ufw-user-forward \
-    -i "${pivpnDEV}" \
+    -i "${netvpnDEV}" \
     -o "${IPv4dev}" \
-    -s "${pivpnNET}/${subnetClass}" \
+    -s "${netvpnNET}/${subnetClass}" \
     -j ACCEPT &> /dev/null; then
     echo ":: [OK] Ufw forwarding rule set"
   else
@@ -245,8 +245,8 @@ else
       REPLY
 
     if [[ "${REPLY}" =~ ^[Yy]$ ]] || [[ -z "${REPLY}" ]]; then
-      ufw route insert 1 allow in on "${pivpnDEV}" \
-        from "${pivpnNET}/${subnetClass}" out on "${IPv4dev}" to any
+      ufw route insert 1 allow in on "${netvpnDEV}" \
+        from "${netvpnNET}/${subnetClass}" out on "${IPv4dev}" to any
       ufw reload
       echo "Done"
     fi
@@ -317,9 +317,9 @@ else
 fi
 
 # grep -w (whole word) is used so port 11940 won't match when looking for 1194
-if netstat -antu | grep -wqE "${pivpnPROTO}.*${pivpnPORT}"; then
+if netstat -antu | grep -wqE "${netvpnPROTO}.*${netvpnPORT}"; then
   echo -n ":: [OK] ${VPN_PRETTY_NAME} is listening "
-  echo "on port ${pivpnPORT}/${pivpnPROTO}"
+  echo "on port ${netvpnPORT}/${netvpnPROTO}"
 else
   ERR=1
   echo -n ":: [ERR] ${VPN_PRETTY_NAME} is not listening, "

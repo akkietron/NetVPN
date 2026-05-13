@@ -9,7 +9,7 @@ interface=$(ip -o link \
 ipaddress=$(ip addr show "${interface}" \
   | grep -o -E "([0-9]{1,3}[\.]){3}[0-9]{1,3}/[0-9]{2}")
 gateway=$(ip route show | awk '/default/ {print $3}')
-hostname="pivpn.test"
+hostname="netvpn.test"
 
 err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
