@@ -11,7 +11,7 @@
 # Make sure you have `curl` installed
 
 ######## VARIABLES #########
-netvpnGitUrl="https://github.com/akkietron/NetVPN"
+netvpnGitUrl="https://github.com/akkietron/NetVPN.git"
 # Uncomment to checkout a custom branch for local netvpn files
 #netvpnGitBranch="custombranchtocheckout"
 setupVarsFile="setupVars.conf"
